@@ -491,7 +491,7 @@
           </div>
           <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>Público</th><th>Promoción</th><th>Gasto</th><th>Total Neto</th><th></th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>P\u00fablico</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
             <tbody id="tbIngresos"><tr><td colspan="9" class="empty-state">Cargando...</td></tr></tbody>
           </table>
           </div>
@@ -568,9 +568,10 @@
           <div class="report-mini"><div class="report-mini-label">Mayor Gasto</div><div class="report-mini-val" id="rep-cat" style="font-size:16px;color:var(--yellow)">—</div></div>
           <div class="report-mini"><div class="report-mini-label">Transacciones</div><div class="report-mini-val" id="rep-txn" style="color:var(--muted)">0</div></div>
         </div>
-        <div class="report-grid" style="grid-template-columns: 1fr 1fr">
+        <div class="report-grid" style="grid-template-columns: 1fr 1fr 1fr">
           <div class="report-mini"><div class="report-mini-label">Total Ventas Mayoreo</div><div class="report-mini-val" id="rep-may" style="color:var(--accent)">$0</div></div>
           <div class="report-mini"><div class="report-mini-label">Total Ventas Público</div><div class="report-mini-val" id="rep-pub" style="color:var(--green)">$0</div></div>
+          <div class="report-mini"><div class="report-mini-label">Total Garrafones Vendidos</div><div class="report-mini-val" id="rep-garr" style="color:var(--yellow)">0</div></div>
         </div>
         <div class="charts-grid">
           <div class="chart-card">
@@ -581,6 +582,20 @@
             <div class="chart-title">Top Vendedores</div>
             <div id="topVendedores"></div>
           </div>
+        </div>
+        <div class="charts-grid" style="margin-top:16px">
+          <div class="chart-card">
+            <div class="chart-title">Desglose por Ruta</div>
+            <div id="repDesgloseRuta"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Desglose por Vendedor</div>
+            <div id="repDesgloseVendedor"></div>
+          </div>
+        </div>
+        <div class="chart-card" style="margin-top:16px">
+          <div class="chart-title">Desglose por Día</div>
+          <div style="overflow-x:auto"><table id="repDesgloseDia" style="width:100%"></table></div>
         </div>
       </div>
 
@@ -731,24 +746,21 @@
     <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="iPubSub" class="amount-pos">$0.00</strong></div>
 
     <div class="section-divider"></div>
-    <h4 class="section-subtitle" style="color:var(--yellow)">Promoción (Opcional)</h4>
-    <div class="form-row">
-      <div class="form-group"><label>Promoción</label><select id="iPromo" onchange="calcIngresoTotals()"><option value="">Sin promoción</option></select></div>
-      <div class="form-group"><label>Descuento Generado</label><input type="text" id="iDescuento" readonly value="$0.00" style="color:var(--yellow)" /></div>
-    </div>
+    <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — selecciona varias)</h4>
+    <div id="iPromosContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+    <div class="form-group"><label>Descuento Total Generado</label><input type="text" id="iDescuento" readonly value="$0.00" style="color:var(--yellow)" /></div>
 
     <div class="section-divider"></div>
-    <h4 class="section-subtitle" style="color:var(--red)">Gasto del Vendedor (Opcional)</h4>
-    <div class="form-row">
-      <div class="form-group"><label>Monto del Gasto ($)</label><input type="number" id="iGasto" value="0" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
-      <div class="form-group"><label>Descripción del Gasto</label><input type="text" id="iGastoDesc" placeholder="Ej: Gasolina, comida..." /></div>
-    </div>
+    <h4 class="section-subtitle" style="color:var(--red)">Gastos del Vendedor (Opcional — agrega varios)</h4>
+    <div id="iGastosList"></div>
+    <button type="button" class="btn-sm" onclick="addGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
 
     <div class="section-divider"></div>
     <div class="totals-box">
+      <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="iTotalGarrafones">0</strong></div>
       <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="iTotalVentas">$0.00</strong></div>
-      <div class="totals-row"><span>Descuento:</span><strong style="color:var(--yellow)" id="iTotalDesc">-$0.00</strong></div>
-      <div class="totals-row"><span>Gasto Vendedor:</span><strong class="amount-neg" id="iTotalGasto">-$0.00</strong></div>
+      <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="iTotalDesc">-$0.00</strong></div>
+      <div class="totals-row"><span>Gastos Vendedor:</span><strong class="amount-neg" id="iTotalGasto">-$0.00</strong></div>
       <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="iTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
     </div>
 
@@ -1325,12 +1337,16 @@ async function populateFilters() {
   fillSelect('iRuta', cats.ruta, false);
   fillSelect('iVend', cats.vendedor, false);
   fillSelect('eCat', cats.egreso, false);
-  const promoSel = document.getElementById('iPromo');
-  if (promoSel) {
-    const cur = promoSel.value;
-    promoSel.innerHTML = '<option value="">Sin promoción</option>' +
-      (cats.promociones || []).map((p, i) => `<option value="${i}">${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})</option>`).join('');
-    if (cur) promoSel.value = cur;
+  const promoCont = document.getElementById('iPromosContainer');
+  if (promoCont) {
+    promoCont.innerHTML = (cats.promociones || []).map((p, i) => `
+      <label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">
+        <input type="checkbox" value="${i}" onchange="calcIngresoTotals()" style="accent-color:var(--yellow)" />
+        ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
+      </label>`).join('');
+    if (!cats.promociones || !cats.promociones.length) {
+      promoCont.innerHTML = '<span style="color:var(--muted);font-size:13px">No hay promociones configuradas. Agrega en Categorías.</span>';
+    }
   }
 }
 
@@ -1541,26 +1557,64 @@ async function loadIngresos() {
   const canDel = currentUser.rol === 'admin' || currentPerms.delete;
   const canEdit = currentUser.rol === 'admin' || currentPerms.ingAdd;
   const tb = document.getElementById('tbIngresos');
+  const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
   if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
   } else {
-    tb.innerHTML = data.map(i => `
-      <tr>
+    tb.innerHTML = data.map(i => {
+      const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+      const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
+      const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto, descripcion: i.gastoDescripcion || ''}] : []);
+      const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
+      const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
+      return `<tr>
         <td>${fmtDate(i.fecha)}</td>
         <td><strong>${i.vendedor || '—'}</strong></td>
         <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
         <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
         <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
-        <td>${i.promocion ? '<span class="badge badge-yellow">' + i.promocion + '</span>' : '—'}</td>
-        <td>${i.gastoMonto ? '<span class="amount-neg">' + fmtMoney(i.gastoMonto) + '</span>' : '—'}</td>
+        <td style="font-size:12px">${promoHtml}</td>
+        <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' + (gList.length > 1 ? ' <span style="color:var(--muted);font-size:11px">(' + gList.length + ')</span>' : '') : '—'}</td>
+        <td style="text-align:center">${garr}</td>
         <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || i.monto || 0)}</strong></td>
         <td>
           ${canEdit ? `<button class="btn-icon" onclick="editIngreso('${i.id}')" title="Editar">✏️</button>` : ''}
           ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
-  document.getElementById('ingTotal').innerHTML = `Total: <strong class="amount-pos">${fmtMoney(total)}</strong>`;
+  document.getElementById('ingTotal').innerHTML = `Garrafones: <strong>${totalGarr}</strong> &nbsp;|&nbsp; Total: <strong class="amount-pos">${fmtMoney(total)}</strong>`;
+}
+
+function addGastoRow(monto, desc) {
+  const list = document.getElementById('iGastosList');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.marginBottom = '6px';
+  row.innerHTML = `
+    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="gastoMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
+    <div class="form-group" style="flex:2"><label>Descripción</label><input type="text" class="gastoDesc" value="${desc || ''}" placeholder="Ej: Gasolina, comida..." /></div>
+    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcIngresoTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
+  list.appendChild(row);
+  calcIngresoTotals();
+}
+
+function getGastosFromUI() {
+  const rows = document.querySelectorAll('#iGastosList .form-row');
+  return Array.from(rows).map(r => ({
+    monto: parseFloat(r.querySelector('.gastoMonto').value) || 0,
+    descripcion: r.querySelector('.gastoDesc').value.trim()
+  })).filter(g => g.monto > 0 || g.descripcion);
+}
+
+function getSelectedPromos() {
+  const checks = document.querySelectorAll('#iPromosContainer input[type=checkbox]:checked');
+  if (!catsCache || !catsCache.promociones) return [];
+  return Array.from(checks).map(cb => {
+    const idx = parseInt(cb.value);
+    return catsCache.promociones[idx];
+  }).filter(Boolean);
 }
 
 function calcIngresoTotals() {
@@ -1568,27 +1622,30 @@ function calcIngresoTotals() {
   const mayPrice = parseFloat(document.getElementById('iMayPrice').value) || 0;
   const pubQty = parseInt(document.getElementById('iPubQty').value) || 0;
   const pubPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
-  const gasto = parseFloat(document.getElementById('iGasto').value) || 0;
 
   const maySub = mayQty * mayPrice;
   const pubSub = pubQty * pubPrice;
   const totalVentas = maySub + pubSub;
+  const totalGarrafones = mayQty + pubQty;
 
   document.getElementById('iMaySub').textContent = fmtMoney(maySub);
   document.getElementById('iPubSub').textContent = fmtMoney(pubSub);
   document.getElementById('iTotalVentas').textContent = fmtMoney(totalVentas);
+  document.getElementById('iTotalGarrafones').textContent = totalGarrafones;
 
   let descuento = 0;
-  const promoIdx = document.getElementById('iPromo').value;
-  if (promoIdx !== '' && catsCache && catsCache.promociones && catsCache.promociones[promoIdx]) {
-    const promo = catsCache.promociones[promoIdx];
-    descuento = promo.tipo === 'porcentaje' ? totalVentas * (promo.valor / 100) : promo.valor;
-  }
+  const promos = getSelectedPromos();
+  promos.forEach(p => {
+    descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
+  });
+
+  const gastos = getGastosFromUI();
+  const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
 
   document.getElementById('iDescuento').value = fmtMoney(descuento);
   document.getElementById('iTotalDesc').textContent = '-' + fmtMoney(descuento);
-  document.getElementById('iTotalGasto').textContent = '-' + fmtMoney(gasto);
-  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas - descuento - gasto);
+  document.getElementById('iTotalGasto').textContent = '-' + fmtMoney(totalGasto);
+  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
 }
 
 async function openIngresoModal() {
@@ -1600,9 +1657,8 @@ async function openIngresoModal() {
   document.getElementById('iMayPrice').value = 0;
   document.getElementById('iPubQty').value = 0;
   document.getElementById('iPubPrice').value = 0;
-  document.getElementById('iGasto').value = 0;
-  document.getElementById('iGastoDesc').value = '';
-  document.getElementById('iPromo').value = '';
+  document.getElementById('iGastosList').innerHTML = '';
+  document.querySelectorAll('#iPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
   document.getElementById('iNotas').value = '';
   document.getElementById('iVend').value = '';
   document.getElementById('iRuta').value = '';
@@ -1625,14 +1681,24 @@ async function editIngreso(id) {
     document.getElementById('iMayPrice').value = d.mayoreoPrice || 0;
     document.getElementById('iPubQty').value = d.publicoQty || 0;
     document.getElementById('iPubPrice').value = d.publicoPrice || 0;
-    document.getElementById('iGasto').value = d.gastoMonto || 0;
-    document.getElementById('iGastoDesc').value = d.gastoDescripcion || '';
+    document.getElementById('iGastosList').innerHTML = '';
+    const gastos = d.gastos || [];
+    if (gastos.length) {
+      gastos.forEach(g => addGastoRow(g.monto, g.descripcion));
+    } else if (d.gastoMonto) {
+      addGastoRow(d.gastoMonto, d.gastoDescripcion || '');
+    }
     document.getElementById('iNotas').value = d.notas || '';
-    if (d.promocion && catsCache && catsCache.promociones) {
-      const idx = catsCache.promociones.findIndex(p => p.nombre === d.promocion);
-      document.getElementById('iPromo').value = idx >= 0 ? idx : '';
-    } else {
-      document.getElementById('iPromo').value = '';
+    document.querySelectorAll('#iPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
+    const promoNames = d.promociones || (d.promocion ? [d.promocion] : []);
+    if (promoNames.length && catsCache && catsCache.promociones) {
+      promoNames.forEach(pn => {
+        const idx = catsCache.promociones.findIndex(p => p.nombre === pn);
+        if (idx >= 0) {
+          const cb = document.querySelector(`#iPromosContainer input[value="${idx}"]`);
+          if (cb) cb.checked = true;
+        }
+      });
     }
     calcIngresoTotals();
     openModal('modalIngreso');
@@ -1649,8 +1715,8 @@ async function saveIngreso() {
   const mayoreoPrice = parseFloat(document.getElementById('iMayPrice').value) || 0;
   const publicoQty = parseInt(document.getElementById('iPubQty').value) || 0;
   const publicoPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
-  const gastoMonto = parseFloat(document.getElementById('iGasto').value) || 0;
-  const gastoDescripcion = document.getElementById('iGastoDesc').value.trim();
+  const gastos = getGastosFromUI();
+  const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
   const notas = document.getElementById('iNotas').value;
 
   if (!fecha || !vendedor || !ruta) { showToast('Selecciona fecha, vendedor y ruta', 'error'); return; }
@@ -1659,24 +1725,24 @@ async function saveIngreso() {
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
   const totalVentas = mayoreoSubtotal + publicoSubtotal;
+  const totalGarrafones = mayoreoQty + publicoQty;
 
   let descuento = 0;
-  let promocion = '';
-  const promoIdx = document.getElementById('iPromo').value;
-  if (promoIdx !== '' && catsCache && catsCache.promociones && catsCache.promociones[promoIdx]) {
-    const promo = catsCache.promociones[promoIdx];
-    promocion = promo.nombre;
-    descuento = promo.tipo === 'porcentaje' ? totalVentas * (promo.valor / 100) : promo.valor;
-  }
+  const promos = getSelectedPromos();
+  const promociones = promos.map(p => p.nombre);
+  promos.forEach(p => {
+    descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
+  });
 
-  const montoNeto = totalVentas - descuento - gastoMonto;
+  const montoNeto = totalVentas - descuento - totalGasto;
 
   const rec = {
     fecha, vendedor, ruta,
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
-    totalVentas, promocion, descuento,
-    gastoMonto, gastoDescripcion,
+    totalVentas, totalGarrafones,
+    promociones, descuento,
+    gastos, gastoMonto: totalGasto,
     montoNeto, notas,
     creadoPor: currentUser.nombre,
     ts: new Date(fecha + 'T12:00:00').getTime()
@@ -1709,14 +1775,20 @@ function appendIngresoRow(i) {
   const canDel = currentUser.rol === 'admin' || currentPerms.delete;
   const canEdit = currentUser.rol === 'admin' || currentPerms.ingAdd;
   const tr = document.createElement('tr');
+  const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+  const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
+  const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
+  const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
+  const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
   tr.innerHTML = `
     <td>${fmtDate(i.fecha)}</td>
     <td><strong>${i.vendedor || '—'}</strong></td>
     <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
     <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
     <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
-    <td>${i.promocion ? '<span class="badge badge-yellow">' + i.promocion + '</span>' : '—'}</td>
-    <td>${i.gastoMonto ? '<span class="amount-neg">' + fmtMoney(i.gastoMonto) + '</span>' : '—'}</td>
+    <td style="font-size:12px">${promoHtml}</td>
+    <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' : '—'}</td>
+    <td style="text-align:center">${garr}</td>
     <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || 0)}</strong></td>
     <td>
       ${canEdit ? `<button class="btn-icon" onclick="editIngreso('${i.id}')" title="Editar">✏️</button>` : ''}
@@ -1926,8 +1998,10 @@ async function loadReportes(period) {
   document.getElementById('rep-bal').textContent = fmtMoney(bal);
   document.getElementById('rep-bal').style.color = bal >= 0 ? 'var(--green)' : 'var(--red)';
   document.getElementById('rep-txn').textContent = fIng.length + fEgr.length;
+  const totGarr = fIng.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
   document.getElementById('rep-may').textContent = fmtMoney(totMay);
   document.getElementById('rep-pub').textContent = fmtMoney(totPub);
+  document.getElementById('rep-garr').textContent = totGarr;
 
   const rutaMap = {};
   fIng.forEach(i => { if (i.ruta) rutaMap[i.ruta] = (rutaMap[i.ruta] || 0) + Number(i.montoNeto || i.monto || 0); });
@@ -1996,6 +2070,74 @@ async function loadReportes(period) {
         <div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${(t / maxV * 100).toFixed(0)}%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:3px"></div></div>
       </div>`).join('');
   }
+
+  // Desglose por Ruta
+  const rutaDetMap = {};
+  fIng.forEach(i => {
+    const r = i.ruta || 'Sin ruta';
+    if (!rutaDetMap[r]) rutaDetMap[r] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, desc: 0, entradas: 0 };
+    rutaDetMap[r].neto += Number(i.montoNeto || i.monto || 0);
+    rutaDetMap[r].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    rutaDetMap[r].may += Number(i.mayoreoQty || 0);
+    rutaDetMap[r].pub += Number(i.publicoQty || 0);
+    rutaDetMap[r].gastos += Number(i.gastoMonto || 0);
+    rutaDetMap[r].desc += Number(i.descuento || 0);
+    rutaDetMap[r].entradas++;
+  });
+  const drEl = document.getElementById('repDesgloseRuta');
+  const rutaEntries = Object.entries(rutaDetMap).sort((a, b) => b[1].neto - a[1].neto);
+  if (!rutaEntries.length) {
+    drEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="icon">🗺️</div>Sin datos</div>';
+  } else {
+    drEl.innerHTML = `<table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left">Ruta</th><th>Entradas</th><th>Garr.</th><th>May.</th><th>Pub.</th><th>Gastos</th><th>Neto</th></tr></thead><tbody>` +
+      rutaEntries.map(([r, d]) => `<tr><td><span class="badge badge-blue">${r}</span></td><td style="text-align:center">${d.entradas}</td><td style="text-align:center">${d.garr}</td><td style="text-align:center">${d.may}</td><td style="text-align:center">${d.pub}</td><td class="amount-neg" style="text-align:right">${fmtMoney(d.gastos)}</td><td class="amount-pos" style="text-align:right">${fmtMoney(d.neto)}</td></tr>`).join('') +
+      `</tbody></table>`;
+  }
+
+  // Desglose por Vendedor
+  const vendDetMap = {};
+  fIng.forEach(i => {
+    const v = i.vendedor || 'Sin vendedor';
+    if (!vendDetMap[v]) vendDetMap[v] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, desc: 0, entradas: 0 };
+    vendDetMap[v].neto += Number(i.montoNeto || i.monto || 0);
+    vendDetMap[v].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    vendDetMap[v].may += Number(i.mayoreoQty || 0);
+    vendDetMap[v].pub += Number(i.publicoQty || 0);
+    vendDetMap[v].gastos += Number(i.gastoMonto || 0);
+    vendDetMap[v].desc += Number(i.descuento || 0);
+    vendDetMap[v].entradas++;
+  });
+  const dvEl = document.getElementById('repDesgloseVendedor');
+  const vendEntries = Object.entries(vendDetMap).sort((a, b) => b[1].neto - a[1].neto);
+  if (!vendEntries.length) {
+    dvEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="icon">👤</div>Sin datos</div>';
+  } else {
+    dvEl.innerHTML = `<table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left">Vendedor</th><th>Entradas</th><th>Garr.</th><th>May.</th><th>Pub.</th><th>Gastos</th><th>Neto</th></tr></thead><tbody>` +
+      vendEntries.map(([v, d]) => `<tr><td><strong>${v}</strong></td><td style="text-align:center">${d.entradas}</td><td style="text-align:center">${d.garr}</td><td style="text-align:center">${d.may}</td><td style="text-align:center">${d.pub}</td><td class="amount-neg" style="text-align:right">${fmtMoney(d.gastos)}</td><td class="amount-pos" style="text-align:right">${fmtMoney(d.neto)}</td></tr>`).join('') +
+      `</tbody></table>`;
+  }
+
+  // Desglose por Día
+  const diaMap = {};
+  fIng.forEach(i => {
+    const d = i.fecha || 'Sin fecha';
+    if (!diaMap[d]) diaMap[d] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, entradas: 0 };
+    diaMap[d].neto += Number(i.montoNeto || i.monto || 0);
+    diaMap[d].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    diaMap[d].may += Number(i.mayoreoQty || 0);
+    diaMap[d].pub += Number(i.publicoQty || 0);
+    diaMap[d].gastos += Number(i.gastoMonto || 0);
+    diaMap[d].entradas++;
+  });
+  const ddEl = document.getElementById('repDesgloseDia');
+  const diaEntries = Object.entries(diaMap).sort((a, b) => b[0].localeCompare(a[0]));
+  if (!diaEntries.length) {
+    ddEl.innerHTML = '<tr><td colspan="7"><div class="empty-state" style="padding:20px"><div class="icon">📅</div>Sin datos</div></td></tr>';
+  } else {
+    ddEl.innerHTML = `<thead><tr><th style="text-align:left">Fecha</th><th>Entradas</th><th>Garrafones</th><th>Mayoreo</th><th>Público</th><th>Gastos</th><th>Neto</th></tr></thead><tbody>` +
+      diaEntries.map(([f, d]) => `<tr><td>${fmtDate(f)}</td><td style="text-align:center">${d.entradas}</td><td style="text-align:center">${d.garr}</td><td style="text-align:center">${d.may}</td><td style="text-align:center">${d.pub}</td><td class="amount-neg" style="text-align:right">${fmtMoney(d.gastos)}</td><td class="amount-pos" style="text-align:right">${fmtMoney(d.neto)}</td></tr>`).join('') +
+      `</tbody>`;
+  }
 }
 
 function setReportPeriod(p, btn) {
@@ -2019,6 +2161,7 @@ async function exportPDF() {
   const bal = totIng - totEgr;
   const totMay = fIng.reduce((s, i) => s + Number(i.mayoreoSubtotal || 0), 0);
   const totPub = fIng.reduce((s, i) => s + Number(i.publicoSubtotal || 0), 0);
+  const totGarr = fIng.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
 
   doc.setFontSize(22);
   doc.setTextColor(0, 150, 200);
@@ -2037,6 +2180,7 @@ async function exportPDF() {
       ['Total Ingresos Netos', fmtMoney(totIng)],
       ['Total Ventas Mayoreo', fmtMoney(totMay)],
       ['Total Ventas Público', fmtMoney(totPub)],
+      ['Total Garrafones Vendidos', String(totGarr)],
       ['Total Egresos', fmtMoney(totEgr)],
       ['Balance', fmtMoney(bal)],
       ['Total Entradas', String(fIng.length)],
@@ -2053,15 +2197,19 @@ async function exportPDF() {
     doc.text('Entradas de Vendedor', 14, doc.lastAutoTable.finalY + 12);
     doc.autoTable({
       startY: doc.lastAutoTable.finalY + 16,
-      head: [['Fecha', 'Vendedor', 'Ruta', 'Mayoreo', 'Público', 'Desc.', 'Gasto', 'Neto']],
-      body: fIng.map(i => [
-        fmtDate(i.fecha), i.vendedor || '', i.ruta || '',
-        i.mayoreoQty ? i.mayoreoQty + 'x' + fmtMoney(i.mayoreoPrice || 0) : '—',
-        i.publicoQty ? i.publicoQty + 'x' + fmtMoney(i.publicoPrice || 0) : '—',
-        i.descuento ? fmtMoney(i.descuento) : '—',
-        i.gastoMonto ? fmtMoney(i.gastoMonto) : '—',
-        fmtMoney(i.montoNeto || i.monto || 0)
-      ]),
+      head: [['Fecha', 'Vendedor', 'Ruta', 'Mayoreo', 'Público', 'Promos', 'Gastos', 'Garr.', 'Neto']],
+      body: fIng.map(i => {
+        const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+        return [
+          fmtDate(i.fecha), i.vendedor || '', i.ruta || '',
+          i.mayoreoQty ? i.mayoreoQty + 'x' + fmtMoney(i.mayoreoPrice || 0) : '—',
+          i.publicoQty ? i.publicoQty + 'x' + fmtMoney(i.publicoPrice || 0) : '—',
+          pList.length ? pList.join(', ') : '—',
+          i.gastoMonto ? fmtMoney(i.gastoMonto) : '—',
+          String(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)),
+          fmtMoney(i.montoNeto || i.monto || 0)
+        ];
+      }),
       theme: 'striped',
       headStyles: { fillColor: [0, 180, 130], fontSize: 8 },
       styles: { fontSize: 8 },
@@ -2102,6 +2250,84 @@ async function exportPDF() {
       theme: 'grid',
       headStyles: { fillColor: [0, 150, 200], fontSize: 9 },
       styles: { fontSize: 9 }
+    });
+  }
+
+  // Desglose por Ruta en PDF
+  const rutaPdfMap = {};
+  fIng.forEach(i => {
+    const r = i.ruta || 'Sin ruta';
+    if (!rutaPdfMap[r]) rutaPdfMap[r] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, entradas: 0 };
+    rutaPdfMap[r].neto += Number(i.montoNeto || i.monto || 0);
+    rutaPdfMap[r].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    rutaPdfMap[r].may += Number(i.mayoreoQty || 0);
+    rutaPdfMap[r].pub += Number(i.publicoQty || 0);
+    rutaPdfMap[r].gastos += Number(i.gastoMonto || 0);
+    rutaPdfMap[r].entradas++;
+  });
+  const rutaPdfList = Object.entries(rutaPdfMap).sort((a, b) => b[1].neto - a[1].neto);
+  if (rutaPdfList.length) {
+    const sy = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 200;
+    doc.setFontSize(14);
+    doc.setTextColor(0, 150, 200);
+    doc.text('Desglose por Ruta', 14, sy);
+    doc.autoTable({
+      startY: sy + 4,
+      head: [['Ruta', 'Entradas', 'Garr.', 'May.', 'Pub.', 'Gastos', 'Neto']],
+      body: rutaPdfList.map(([r, d]) => [r, d.entradas, d.garr, d.may, d.pub, fmtMoney(d.gastos), fmtMoney(d.neto)]),
+      theme: 'grid', headStyles: { fillColor: [0, 150, 200], fontSize: 8 }, styles: { fontSize: 8 }
+    });
+  }
+
+  // Desglose por Vendedor en PDF
+  const vendPdfMap = {};
+  fIng.forEach(i => {
+    const v = i.vendedor || 'Sin vendedor';
+    if (!vendPdfMap[v]) vendPdfMap[v] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, entradas: 0 };
+    vendPdfMap[v].neto += Number(i.montoNeto || i.monto || 0);
+    vendPdfMap[v].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    vendPdfMap[v].may += Number(i.mayoreoQty || 0);
+    vendPdfMap[v].pub += Number(i.publicoQty || 0);
+    vendPdfMap[v].gastos += Number(i.gastoMonto || 0);
+    vendPdfMap[v].entradas++;
+  });
+  const vendPdfList = Object.entries(vendPdfMap).sort((a, b) => b[1].neto - a[1].neto);
+  if (vendPdfList.length) {
+    const sy = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 200;
+    doc.setFontSize(14);
+    doc.setTextColor(0, 150, 200);
+    doc.text('Desglose por Vendedor', 14, sy);
+    doc.autoTable({
+      startY: sy + 4,
+      head: [['Vendedor', 'Entradas', 'Garr.', 'May.', 'Pub.', 'Gastos', 'Neto']],
+      body: vendPdfList.map(([v, d]) => [v, d.entradas, d.garr, d.may, d.pub, fmtMoney(d.gastos), fmtMoney(d.neto)]),
+      theme: 'grid', headStyles: { fillColor: [0, 180, 130], fontSize: 8 }, styles: { fontSize: 8 }
+    });
+  }
+
+  // Desglose por Día en PDF
+  const diaPdfMap = {};
+  fIng.forEach(i => {
+    const d = i.fecha || 'Sin fecha';
+    if (!diaPdfMap[d]) diaPdfMap[d] = { neto: 0, garr: 0, may: 0, pub: 0, gastos: 0, entradas: 0 };
+    diaPdfMap[d].neto += Number(i.montoNeto || i.monto || 0);
+    diaPdfMap[d].garr += Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0));
+    diaPdfMap[d].may += Number(i.mayoreoQty || 0);
+    diaPdfMap[d].pub += Number(i.publicoQty || 0);
+    diaPdfMap[d].gastos += Number(i.gastoMonto || 0);
+    diaPdfMap[d].entradas++;
+  });
+  const diaPdfList = Object.entries(diaPdfMap).sort((a, b) => b[0].localeCompare(a[0]));
+  if (diaPdfList.length) {
+    const sy = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : 200;
+    doc.setFontSize(14);
+    doc.setTextColor(0, 150, 200);
+    doc.text('Desglose por D\u00eda', 14, sy);
+    doc.autoTable({
+      startY: sy + 4,
+      head: [['Fecha', 'Entradas', 'Garr.', 'May.', 'Pub.', 'Gastos', 'Neto']],
+      body: diaPdfList.map(([f, d]) => [fmtDate(f), d.entradas, d.garr, d.may, d.pub, fmtMoney(d.gastos), fmtMoney(d.neto)]),
+      theme: 'grid', headStyles: { fillColor: [255, 209, 102], textColor: [0, 0, 0], fontSize: 8 }, styles: { fontSize: 8 }
     });
   }
 
