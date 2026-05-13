@@ -713,6 +713,88 @@
         </div>
       </div>
 
+      <!-- VENDEDOR INTERFACE (simplified single page for vendedor role) -->
+      <div id="page-vendedor" class="page">
+        <div style="max-width:800px;margin:0 auto">
+          <div style="text-align:center;margin-bottom:24px">
+            <h2 class="page-title" style="font-size:28px">💧 7 Manantiales</h2>
+            <p style="color:var(--accent);font-size:16px;margin-top:4px" id="vendNombreHeader">Vendedor</p>
+          </div>
+
+          <!-- Ruta del Día -->
+          <div class="card" style="margin-bottom:20px;border-left:4px solid var(--accent)">
+            <h3 style="margin-bottom:8px;font-size:16px">🗺️ Tu Ruta de Hoy</h3>
+            <div id="vendRutaHoy" style="font-size:15px;color:var(--muted)">Cargando...</div>
+          </div>
+
+          <!-- Registrar Venta -->
+          <div class="card" style="margin-bottom:20px">
+            <h3 style="margin-bottom:16px;font-size:16px">💰 Registrar Venta</h3>
+            <div class="form-row">
+              <div class="form-group"><label>Fecha</label><input type="date" id="vDate" /></div>
+              <div class="form-group"><label>Ruta</label><select id="vRuta"></select></div>
+            </div>
+
+            <div class="section-divider"></div>
+            <h4 class="section-subtitle" style="color:var(--accent)">Ventas por Mayoreo</h4>
+            <div class="form-row">
+              <div class="form-group"><label>Cantidad</label><input type="number" id="vMayQty" value="0" min="0" oninput="calcVendedorTotals()" /></div>
+              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vMayPrice" value="0" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+            </div>
+            <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vMaySub" class="amount-pos">$0.00</strong></div>
+
+            <h4 class="section-subtitle" style="color:var(--green)">Ventas Público en General</h4>
+            <div class="form-row">
+              <div class="form-group"><label>Cantidad</label><input type="number" id="vPubQty" value="0" min="0" oninput="calcVendedorTotals()" /></div>
+              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vPubPrice" value="0" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+            </div>
+            <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vPubSub" class="amount-pos">$0.00</strong></div>
+
+            <div class="section-divider"></div>
+            <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional)</h4>
+            <div id="vPromosContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+            <div class="form-group"><label>Descuento Total Generado</label><input type="text" id="vDescuento" readonly value="$0.00" style="color:var(--yellow)" /></div>
+
+            <div class="section-divider"></div>
+            <h4 class="section-subtitle" style="color:var(--red)">Gastos (Opcional)</h4>
+            <div id="vGastosList"></div>
+            <button type="button" class="btn-sm" onclick="addVendGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
+
+            <div class="section-divider"></div>
+            <div class="totals-box">
+              <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="vTotalGarrafones">0</strong></div>
+              <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="vTotalVentas">$0.00</strong></div>
+              <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="vTotalDesc">-$0.00</strong></div>
+              <div class="totals-row"><span>Gastos:</span><strong class="amount-neg" id="vTotalGasto">-$0.00</strong></div>
+              <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="vTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
+            </div>
+
+            <div class="form-group"><label>Notas (opcional)</label><textarea id="vNotas" rows="2" placeholder="Observaciones..."></textarea></div>
+            <button class="btn-add" style="width:100%;margin-top:10px" onclick="saveVendedorVenta()">Registrar Venta</button>
+          </div>
+
+          <!-- Historial de Ventas -->
+          <div class="card">
+            <h3 style="margin-bottom:16px;font-size:16px">📋 Mi Historial de Ventas</h3>
+            <div style="margin-bottom:12px">
+              <select id="vHistPeriod" onchange="loadVendedorHistorial()" style="padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text)">
+                <option value="hoy">Hoy</option>
+                <option value="semana" selected>Esta semana</option>
+                <option value="mes">Este mes</option>
+                <option value="todo">Todo</option>
+              </select>
+            </div>
+            <div style="overflow-x:auto">
+              <table>
+                <thead><tr><th>Fecha</th><th>Ruta</th><th>Mayoreo</th><th>Público</th><th>Promos</th><th>Gastos</th><th>Garr.</th><th>Neto</th></tr></thead>
+                <tbody id="tbVendHist"></tbody>
+              </table>
+            </div>
+            <div id="vendHistTotal" style="text-align:right;padding:12px;color:var(--muted);font-size:14px"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -845,12 +927,17 @@
     <div class="form-row">
       <div class="form-group"><label>Contraseña</label><input type="password" id="uPass" placeholder="Mínimo 6 caracteres" /></div>
       <div class="form-group"><label>Rol</label>
-        <select id="uRol">
+        <select id="uRol" onchange="toggleVendedorSelect()">
           <option value="operador">Operador</option>
           <option value="vendedor">Vendedor</option>
           <option value="contador">Contador</option>
         </select>
       </div>
+    </div>
+    <div class="form-group" id="vendedorNameGroup" style="display:none">
+      <label>Nombre del Vendedor (vinculado a Categorías)</label>
+      <select id="uVendedorNombre"></select>
+      <span style="font-size:11px;color:var(--muted)">Selecciona el vendedor de la lista de Categorías al que corresponde esta cuenta</span>
     </div>
     <div class="section-divider"></div>
     <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Permisos habilitados:</p>
@@ -1118,13 +1205,24 @@ function loginSuccess() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topUser').textContent = currentUser.nombre;
-  applyPerms();
-  startRealtimeListeners();
-  startClientesListener();
-  startPedidosListener();
-  startRepartidoresListener();
-  startRutasDiaListener();
-  loadAllData();
+  if (isVendedorRole()) {
+    // Vendedor: simplified interface
+    getCats().then(() => {
+      initVendedorInterface();
+    });
+    startRealtimeListeners();
+  } else {
+    // Admin/operador/contador: full interface
+    document.querySelector('.sidebar').style.display = '';
+    document.querySelector('.content').style.maxWidth = '';
+    applyPerms();
+    startRealtimeListeners();
+    startClientesListener();
+    startPedidosListener();
+    startRepartidoresListener();
+    startRutasDiaListener();
+    loadAllData();
+  }
 }
 
 function doLogout() {
@@ -1146,6 +1244,11 @@ function doLogout() {
   currentUser = null;
   currentPerms = {};
   catsCache = null;
+  // Reset sidebar visibility for next login
+  document.querySelector('.sidebar').style.display = '';
+  document.querySelector('.content').style.maxWidth = '';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-dashboard').classList.add('active');
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
@@ -2537,6 +2640,10 @@ async function saveUsuario() {
     delete: document.getElementById('pDelete').checked
   };
   const userData = { nombre, email, rol, permisos, activo: true, creadoPor: currentUser.nombre };
+  if (rol === 'vendedor') {
+    const vn = document.getElementById('uVendedorNombre').value;
+    if (vn) userData.vendedorNombre = vn;
+  }
   try {
     const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary_' + Date.now());
     try {
@@ -3133,6 +3240,249 @@ document.addEventListener('keydown', e => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', calcPedidoMonto);
 });
+
+// ═══════════════════════════════════════════
+//  VENDEDOR INTERFACE
+// ═══════════════════════════════════════════
+
+function toggleVendedorSelect() {
+  const rol = document.getElementById('uRol').value;
+  const group = document.getElementById('vendedorNameGroup');
+  group.style.display = rol === 'vendedor' ? '' : 'none';
+  if (rol === 'vendedor' && catsCache) {
+    const sel = document.getElementById('uVendedorNombre');
+    sel.innerHTML = '<option value="">— Seleccionar vendedor —</option>' +
+      (catsCache.vendedor || []).map(v => `<option value="${v}">${v}</option>`).join('');
+  }
+}
+
+function isVendedorRole() {
+  return currentUser && currentUser.rol === 'vendedor';
+}
+
+function initVendedorInterface() {
+  const vendName = currentUser.vendedorNombre || currentUser.nombre;
+  document.getElementById('vendNombreHeader').textContent = vendName;
+  document.getElementById('vDate').value = new Date().toISOString().split('T')[0];
+
+  // Hide sidebar, show only vendedor page
+  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.content').style.maxWidth = '100%';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-vendedor').classList.add('active');
+
+  // Populate ruta dropdown
+  if (catsCache && catsCache.ruta) {
+    const sel = document.getElementById('vRuta');
+    sel.innerHTML = catsCache.ruta.map(r => `<option value="${r}">${r}</option>`).join('');
+  }
+
+  // Populate promos as checkboxes
+  const promoCont = document.getElementById('vPromosContainer');
+  if (catsCache && catsCache.promociones && catsCache.promociones.length) {
+    promoCont.innerHTML = catsCache.promociones.map((p, i) => `
+      <label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">
+        <input type="checkbox" value="${i}" onchange="calcVendedorTotals()" style="accent-color:var(--yellow)" />
+        ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
+      </label>`).join('');
+  } else {
+    promoCont.innerHTML = '<span style="color:var(--muted);font-size:13px">No hay promociones configuradas.</span>';
+  }
+
+  // Load today's route assignment
+  loadVendedorRutaHoy(vendName);
+  loadVendedorHistorial();
+}
+
+async function loadVendedorRutaHoy(vendName) {
+  const el = document.getElementById('vendRutaHoy');
+  try {
+    const hoy = new Date().toISOString().split('T')[0];
+    const snap = await db.collection('rutasDia').where('fecha', '==', hoy).get();
+    let rutaHoy = null;
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.repartidor && d.repartidor.toLowerCase().includes(vendName.toLowerCase())) {
+        rutaHoy = d;
+      }
+    });
+    if (rutaHoy) {
+      el.innerHTML = `<strong style="color:var(--accent)">${rutaHoy.ruta}</strong> — Asignada para hoy`;
+      const sel = document.getElementById('vRuta');
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === rutaHoy.ruta) { sel.selectedIndex = i; break; }
+      }
+    } else {
+      el.innerHTML = 'No tienes ruta asignada para hoy. Selecciona una manualmente.';
+    }
+  } catch(e) {
+    el.innerHTML = 'No se pudo cargar la ruta del día.';
+  }
+}
+
+function addVendGastoRow(monto, desc) {
+  const list = document.getElementById('vGastosList');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.marginBottom = '6px';
+  row.innerHTML = `
+    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="vGastoMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+    <div class="form-group" style="flex:2"><label>Descripción</label><input type="text" class="vGastoDesc" value="${desc || ''}" placeholder="Ej: Gasolina, comida..." /></div>
+    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcVendedorTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
+  list.appendChild(row);
+  calcVendedorTotals();
+}
+
+function getVendGastos() {
+  const rows = document.querySelectorAll('#vGastosList .form-row');
+  return Array.from(rows).map(r => ({
+    monto: parseFloat(r.querySelector('.vGastoMonto').value) || 0,
+    descripcion: r.querySelector('.vGastoDesc').value.trim()
+  })).filter(g => g.monto > 0 || g.descripcion);
+}
+
+function getVendPromos() {
+  const checks = document.querySelectorAll('#vPromosContainer input[type=checkbox]:checked');
+  if (!catsCache || !catsCache.promociones) return [];
+  return Array.from(checks).map(cb => {
+    const idx = parseInt(cb.value);
+    return catsCache.promociones[idx];
+  }).filter(Boolean);
+}
+
+function calcVendedorTotals() {
+  const mayQty = parseInt(document.getElementById('vMayQty').value) || 0;
+  const mayPrice = parseFloat(document.getElementById('vMayPrice').value) || 0;
+  const pubQty = parseInt(document.getElementById('vPubQty').value) || 0;
+  const pubPrice = parseFloat(document.getElementById('vPubPrice').value) || 0;
+
+  const maySub = mayQty * mayPrice;
+  const pubSub = pubQty * pubPrice;
+  const totalVentas = maySub + pubSub;
+  const totalGarrafones = mayQty + pubQty;
+
+  document.getElementById('vMaySub').textContent = fmtMoney(maySub);
+  document.getElementById('vPubSub').textContent = fmtMoney(pubSub);
+  document.getElementById('vTotalVentas').textContent = fmtMoney(totalVentas);
+  document.getElementById('vTotalGarrafones').textContent = totalGarrafones;
+
+  let descuento = 0;
+  const promos = getVendPromos();
+  promos.forEach(p => {
+    descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
+  });
+
+  const gastos = getVendGastos();
+  const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
+
+  document.getElementById('vDescuento').value = fmtMoney(descuento);
+  document.getElementById('vTotalDesc').textContent = '-' + fmtMoney(descuento);
+  document.getElementById('vTotalGasto').textContent = '-' + fmtMoney(totalGasto);
+  document.getElementById('vTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
+}
+
+async function saveVendedorVenta() {
+  const fecha = document.getElementById('vDate').value;
+  const ruta = document.getElementById('vRuta').value;
+  const vendedor = currentUser.vendedorNombre || currentUser.nombre;
+  const mayoreoQty = parseInt(document.getElementById('vMayQty').value) || 0;
+  const mayoreoPrice = parseFloat(document.getElementById('vMayPrice').value) || 0;
+  const publicoQty = parseInt(document.getElementById('vPubQty').value) || 0;
+  const publicoPrice = parseFloat(document.getElementById('vPubPrice').value) || 0;
+  const notas = document.getElementById('vNotas').value;
+
+  if (!fecha || !ruta) { showToast('Selecciona fecha y ruta', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
+
+  const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
+  const publicoSubtotal = publicoQty * publicoPrice;
+  const totalVentas = mayoreoSubtotal + publicoSubtotal;
+  const totalGarrafones = mayoreoQty + publicoQty;
+
+  let descuento = 0;
+  const promos = getVendPromos();
+  const promociones = promos.map(p => p.nombre);
+  promos.forEach(p => {
+    descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
+  });
+
+  const gastos = getVendGastos();
+  const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
+  const montoNeto = totalVentas - descuento - totalGasto;
+
+  const rec = {
+    fecha, vendedor, ruta,
+    mayoreoQty, mayoreoPrice, mayoreoSubtotal,
+    publicoQty, publicoPrice, publicoSubtotal,
+    totalVentas, totalGarrafones,
+    promociones, descuento,
+    gastos, gastoMonto: totalGasto,
+    montoNeto, notas,
+    creadoPor: currentUser.nombre,
+    ts: new Date(fecha + 'T12:00:00').getTime()
+  };
+
+  try {
+    await db.collection('ingresos').add(rec);
+    showToast('Venta registrada correctamente', 'success');
+    // Reset form
+    document.getElementById('vMayQty').value = 0;
+    document.getElementById('vMayPrice').value = 0;
+    document.getElementById('vPubQty').value = 0;
+    document.getElementById('vPubPrice').value = 0;
+    document.getElementById('vNotas').value = '';
+    document.getElementById('vGastosList').innerHTML = '';
+    document.querySelectorAll('#vPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
+    calcVendedorTotals();
+    loadVendedorHistorial();
+  } catch(e) {
+    showToast('Error al guardar: ' + e.message, 'error');
+  }
+}
+
+async function loadVendedorHistorial() {
+  const vendName = currentUser.vendedorNombre || currentUser.nombre;
+  const period = document.getElementById('vHistPeriod').value;
+  const tb = document.getElementById('tbVendHist');
+
+  try {
+    const snap = await db.collection('ingresos').orderBy('ts', 'desc').get({ source: 'server' });
+    let data = [];
+    snap.forEach(doc => {
+      const d = { id: doc.id, ...doc.data() };
+      if (d.vendedor === vendName) data.push(d);
+    });
+
+    data = data.filter(i => inRange(i.fecha, period));
+    const total = data.reduce((s, i) => s + Number(i.montoNeto || i.monto || 0), 0);
+    const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
+
+    if (!data.length) {
+      tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="icon">💰</div>Sin ventas en el período</div></td></tr>';
+    } else {
+      tb.innerHTML = data.map(i => {
+        const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+        const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
+        const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
+        const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
+        const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
+        return `<tr>
+          <td>${fmtDate(i.fecha)}</td>
+          <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
+          <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
+          <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
+          <td style="font-size:12px">${promoHtml}</td>
+          <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' : '—'}</td>
+          <td style="text-align:center">${garr}</td>
+          <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || i.monto || 0)}</strong></td>
+        </tr>`;
+      }).join('');
+    }
+    document.getElementById('vendHistTotal').innerHTML = `Garrafones: <strong>${totalGarr}</strong> &nbsp;|&nbsp; Total: <strong class="amount-pos">${fmtMoney(total)}</strong>`;
+  } catch(e) {
+    tb.innerHTML = '<tr><td colspan="8">Error al cargar historial</td></tr>';
+  }
+}
 </script>
 </body>
 </html>
