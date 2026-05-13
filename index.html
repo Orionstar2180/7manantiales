@@ -2988,6 +2988,7 @@ function loadPedidos() {
       <td>${p.repartidorNombre||'<span style="color:var(--muted)">Sin asignar</span>'}</td>
       <td><span class="status-badge status-${p.estado||'pendiente'}">${p.estado||'pendiente'}</span></td>
       <td>
+        ${p.repartidorNombre ? `<button class="btn-icon" onclick="sendPedidoWhatsAppById('${p.id}')" title="Enviar WhatsApp" style="color:var(--green)">📱</button>` : ''}
         ${canEdit ? `<button class="btn-icon" onclick="editPedido('${p.id}')" title="Editar">✏️</button>` : ''}
         ${canDel ? `<button class="btn-icon" onclick="delPedido('${p.id}')" title="Eliminar">🗑️</button>` : ''}
       </td>
@@ -3058,8 +3059,11 @@ async function savePedido() {
   const editId = document.getElementById('editingPedidoId').value;
   const rec = {
     clienteId, clienteNombre: cliente ? cliente.nombre : '', clienteDireccion: cliente ? (cliente.direccion + ', ' + (cliente.colonia||'')) : '',
+    clienteLat: cliente ? (cliente.lat || null) : null, clienteLng: cliente ? (cliente.lng || null) : null,
+    clienteTelefono: cliente ? (cliente.telefono || '') : '',
     fecha, producto, cantidad, precio, monto,
     repartidorId: repartidorId || '', repartidorNombre: repartidor ? repartidor.nombre : '',
+    repartidorTelefono: repartidor ? (repartidor.telefono || '') : '',
     estado, notas, ts: Date.now(), creadoPor: currentUser.nombre
   };
   try {
@@ -3073,6 +3077,10 @@ async function savePedido() {
         await db.collection('clientes').doc(clienteId).update({ pedidosCount: firebase.firestore.FieldValue.increment(1) });
       }
       showToast('Pedido creado', 'success');
+      // Send WhatsApp notification to repartidor/vendedor
+      if (repartidor && repartidor.telefono) {
+        sendPedidoWhatsApp(rec, repartidor.telefono);
+      }
     }
     closeModal('modalPedido');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -3082,6 +3090,44 @@ async function delPedido(id) {
   if (!confirm('¿Eliminar este pedido?')) return;
   try { await db.collection('pedidos').doc(id).delete(); showToast('Pedido eliminado', 'success'); }
   catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function sendPedidoWhatsApp(pedido, telefono) {
+  const phone = telefono.replace(/\D/g, '');
+  const fullPhone = phone.startsWith('52') ? phone : '52' + phone;
+  let mapLink = '';
+  if (pedido.clienteLat && pedido.clienteLng) {
+    mapLink = `\n📍 Ubicación: https://www.google.com/maps?q=${pedido.clienteLat},${pedido.clienteLng}`;
+  }
+  const msg = `📦 *NUEVO PEDIDO ASIGNADO*\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `📋 Folio: ${pedido.folio || 'N/A'}\n` +
+    `👤 Cliente: ${pedido.clienteNombre || 'N/A'}\n` +
+    `📞 Tel Cliente: ${pedido.clienteTelefono || 'N/A'}\n` +
+    `📍 Dirección: ${pedido.clienteDireccion || 'N/A'}${mapLink}\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `📦 Producto: ${pedido.producto || 'N/A'}\n` +
+    `🔢 Cantidad: ${pedido.cantidad || 0}\n` +
+    `💰 Monto: $${(pedido.monto || 0).toFixed(2)}\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `📅 Fecha: ${pedido.fecha || 'Hoy'}\n` +
+    (pedido.notas ? `📝 Notas: ${pedido.notas}\n` : '') +
+    `\n_7 Manantiales - Purificadora_`;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function sendPedidoWhatsAppById(pedidoId) {
+  const p = pedidosCache.find(x => x.id === pedidoId);
+  if (!p) { showToast('Pedido no encontrado', 'error'); return; }
+  if (!p.repartidorTelefono && !p.repartidorId) { showToast('Sin repartidor asignado', 'error'); return; }
+  let tel = p.repartidorTelefono;
+  if (!tel && p.repartidorId) {
+    const rep = repartidoresCache.find(r => r.id === p.repartidorId);
+    tel = rep ? rep.telefono : '';
+  }
+  if (!tel) { showToast('El repartidor no tiene teléfono registrado', 'error'); return; }
+  sendPedidoWhatsApp(p, tel);
 }
 
 // ═══════════════════════════════════════════
@@ -3485,14 +3531,18 @@ function startVendedorPedidosListener(vendName) {
       const statusColors = { pendiente: 'var(--yellow)', proceso: 'var(--accent)', entregado: 'var(--green)', cancelado: 'var(--red)' };
       const statusColor = statusColors[p.estado] || 'var(--muted)';
       const statusLabel = p.estado === 'proceso' ? 'En Proceso' : (p.estado || 'pendiente');
+      const canDeliver = p.estado !== 'entregado' && p.estado !== 'cancelado';
+      const mapBtn = (p.clienteLat && p.clienteLng) ? `<a href="https://www.google.com/maps?q=${p.clienteLat},${p.clienteLng}" target="_blank" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;text-decoration:none;display:inline-block">📍 Mapa</a>` : '';
+      const deliverBtn = canDeliver ? `<button onclick="marcarPedidoEntregado('${p.id}')" style="background:var(--green);color:#000;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600">✅ Entregado</button>` : '';
       return `<div class="pedido-item" style="margin-bottom:6px">
         <div class="num">${p.cantidad || 0}</div>
         <div class="info">
           <div class="name">${p.clienteNombre || 'Sin cliente'}</div>
           <div class="addr">${p.producto || ''} — ${p.clienteDireccion || ''}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.folio || ''} · ${fmtMoney(p.monto || 0)}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${mapBtn} ${deliverBtn}</div>
         </div>
-        <span class="status-badge" style="background:${statusColor}20;color:${statusColor};font-size:11px;padding:3px 8px;border-radius:6px;text-transform:capitalize">${statusLabel}</span>
+        <span class="status-badge" style="background:${statusColor}20;color:${statusColor};font-size:11px;padding:3px 8px;border-radius:6px;text-transform:capitalize;flex-shrink:0">${statusLabel}</span>
       </div>`;
     }).join('');
   }, err => { console.error('[7M] Vendedor pedidos listener error:', err); });
@@ -3521,6 +3571,48 @@ function showPedidoNotification(pedido) {
       });
       n.onclick = () => { window.focus(); n.close(); };
     } catch(e) { console.log('Notification error:', e); }
+  }
+}
+
+async function marcarPedidoEntregado(pedidoId) {
+  if (!confirm('¿Marcar este pedido como entregado? Se creará automáticamente la venta.')) return;
+  try {
+    // Get pedido data from Firestore
+    const pedDoc = await db.collection('pedidos').doc(pedidoId).get();
+    if (!pedDoc.exists) { showToast('Pedido no encontrado', 'error'); return; }
+    const p = pedDoc.data();
+
+    // Update pedido status to entregado
+    await db.collection('pedidos').doc(pedidoId).update({ estado: 'entregado' });
+
+    // Auto-create ingreso (sale) from pedido data
+    const vendedor = currentUser.vendedorNombre || currentUser.nombre;
+    const mayoreoPrice = catsCache ? (catsCache.precioMayoreo || 0) : 0;
+    const publicoPrice = catsCache ? (catsCache.precioPublico || 0) : 0;
+    const cantidad = p.cantidad || 0;
+    const totalVentas = cantidad * (p.precio || 0);
+
+    const ingreso = {
+      fecha: p.fecha || new Date().toISOString().split('T')[0],
+      vendedor: vendedor,
+      ruta: document.getElementById('vRuta') ? document.getElementById('vRuta').value : '',
+      mayoreoQty: cantidad, mayoreoPrice: p.precio || mayoreoPrice, mayoreoSubtotal: totalVentas,
+      publicoQty: 0, publicoPrice: publicoPrice, publicoSubtotal: 0,
+      totalVentas: totalVentas, totalGarrafones: cantidad,
+      promociones: [], descuento: 0,
+      gastos: [], gastoMonto: 0,
+      montoNeto: totalVentas,
+      notas: `Pedido ${p.folio || ''} — ${p.clienteNombre || ''} — ${p.producto || ''}`,
+      creadoPor: vendedor,
+      pedidoId: pedidoId,
+      ts: Date.now()
+    };
+
+    await db.collection('ingresos').add(ingreso);
+    showToast(`✅ Pedido entregado y venta registrada: ${fmtMoney(totalVentas)}`, 'success');
+    loadVendedorHistorial();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
