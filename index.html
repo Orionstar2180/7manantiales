@@ -805,9 +805,14 @@ async function doRegister() {
   if (!nombre || !email || !pass) { err.textContent = 'Completa todos los campos'; return; }
   if (pass.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres'; return; }
   try {
-    const usersSnap = await db.collection('usuarios').limit(1).get();
-    const isFirstUser = usersSnap.empty;
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    let isFirstUser = false;
+    try {
+      const usersSnap = await db.collection('usuarios').limit(1).get();
+      isFirstUser = usersSnap.empty;
+    } catch (_) {
+      isFirstUser = true;
+    }
     const userData = {
       nombre, email,
       rol: isFirstUser ? 'admin' : 'operador',
