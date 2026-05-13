@@ -621,6 +621,17 @@
             <div id="catPromoList" style="padding:12px"></div>
           </div>
         </div>
+        <div class="table-card" style="margin-bottom:20px">
+          <div class="table-header"><h3>💲 Precios por Defecto</h3></div>
+          <div style="padding:16px">
+            <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Estos precios se precargan automáticamente cuando un vendedor registra una venta.</p>
+            <div class="form-row">
+              <div class="form-group"><label>Precio Mayoreo ($)</label><input type="number" id="catPrecioMayoreo" value="0" step="0.01" min="0" /></div>
+              <div class="form-group"><label>Precio Público ($)</label><input type="number" id="catPrecioPublico" value="0" step="0.01" min="0" /></div>
+              <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-add" onclick="saveDefaultPrices()">Guardar Precios</button></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- CLIENTES -->
@@ -725,6 +736,10 @@
           <div class="card" style="margin-bottom:20px;border-left:4px solid var(--accent)">
             <h3 style="margin-bottom:8px;font-size:16px">🗺️ Tu Ruta de Hoy</h3>
             <div id="vendRutaHoy" style="font-size:15px;color:var(--muted)">Cargando...</div>
+            <div id="vendMiniMapWrap" style="display:none;margin-top:12px">
+              <button type="button" class="btn-sm" onclick="toggleVendMap()" style="margin-bottom:8px;background:var(--bg3);border:1px solid var(--accent);color:var(--accent)">🗺️ Ver Mapa de Ruta</button>
+              <div id="vendMiniMapContainer" style="display:none;height:280px;border-radius:var(--radius);border:1px solid var(--border);z-index:1"></div>
+            </div>
           </div>
 
           <!-- Registrar Venta -->
@@ -751,7 +766,7 @@
             <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vPubSub" class="amount-pos">$0.00</strong></div>
 
             <div class="section-divider"></div>
-            <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional)</h4>
+            <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — puedes aplicar varias veces)</h4>
             <div id="vPromosContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
             <div class="form-group"><label>Descuento Total Generado</label><input type="text" id="vDescuento" readonly value="$0.00" style="color:var(--yellow)" /></div>
 
@@ -828,7 +843,7 @@
     <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="iPubSub" class="amount-pos">$0.00</strong></div>
 
     <div class="section-divider"></div>
-    <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — selecciona varias)</h4>
+    <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — puedes aplicar varias veces)</h4>
     <div id="iPromosContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
     <div class="form-group"><label>Descuento Total Generado</label><input type="text" id="iDescuento" readonly value="$0.00" style="color:var(--yellow)" /></div>
 
@@ -1443,10 +1458,10 @@ async function populateFilters() {
   const promoCont = document.getElementById('iPromosContainer');
   if (promoCont) {
     promoCont.innerHTML = (cats.promociones || []).map((p, i) => `
-      <label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">
-        <input type="checkbox" value="${i}" onchange="calcIngresoTotals()" style="accent-color:var(--yellow)" />
-        ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
-      </label>`).join('');
+      <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px">
+        <input type="number" class="promoQtyInput" data-idx="${i}" value="0" min="0" max="99" style="width:44px;padding:3px 4px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--yellow);font-size:13px" oninput="calcIngresoTotals()" />
+        <span style="color:var(--yellow)">×</span> ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
+      </div>`).join('');
     if (!cats.promociones || !cats.promociones.length) {
       promoCont.innerHTML = '<span style="color:var(--muted);font-size:13px">No hay promociones configuradas. Agrega en Categorías.</span>';
     }
@@ -1712,12 +1727,18 @@ function getGastosFromUI() {
 }
 
 function getSelectedPromos() {
-  const checks = document.querySelectorAll('#iPromosContainer input[type=checkbox]:checked');
+  const inputs = document.querySelectorAll('#iPromosContainer .promoQtyInput');
   if (!catsCache || !catsCache.promociones) return [];
-  return Array.from(checks).map(cb => {
-    const idx = parseInt(cb.value);
-    return catsCache.promociones[idx];
-  }).filter(Boolean);
+  const result = [];
+  inputs.forEach(inp => {
+    const qty = parseInt(inp.value) || 0;
+    const idx = parseInt(inp.dataset.idx);
+    const p = catsCache.promociones[idx];
+    if (p && qty > 0) {
+      for (let i = 0; i < qty; i++) result.push(p);
+    }
+  });
+  return result;
 }
 
 function calcIngresoTotals() {
@@ -1757,11 +1778,11 @@ async function openIngresoModal() {
   document.getElementById('modalIngresoTitle').textContent = '💰 Nueva Entrada de Vendedor';
   document.getElementById('iDate').value = todayStr();
   document.getElementById('iMayQty').value = 0;
-  document.getElementById('iMayPrice').value = 0;
+  document.getElementById('iMayPrice').value = catsCache && catsCache.precioMayoreo ? catsCache.precioMayoreo : 0;
   document.getElementById('iPubQty').value = 0;
-  document.getElementById('iPubPrice').value = 0;
+  document.getElementById('iPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
   document.getElementById('iGastosList').innerHTML = '';
-  document.querySelectorAll('#iPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
   document.getElementById('iNotas').value = '';
   document.getElementById('iVend').value = '';
   document.getElementById('iRuta').value = '';
@@ -1792,14 +1813,16 @@ async function editIngreso(id) {
       addGastoRow(d.gastoMonto, d.gastoDescripcion || '');
     }
     document.getElementById('iNotas').value = d.notas || '';
-    document.querySelectorAll('#iPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
     const promoNames = d.promociones || (d.promocion ? [d.promocion] : []);
     if (promoNames.length && catsCache && catsCache.promociones) {
-      promoNames.forEach(pn => {
+      const countMap = {};
+      promoNames.forEach(pn => { countMap[pn] = (countMap[pn] || 0) + 1; });
+      Object.entries(countMap).forEach(([pn, count]) => {
         const idx = catsCache.promociones.findIndex(p => p.nombre === pn);
         if (idx >= 0) {
-          const cb = document.querySelector(`#iPromosContainer input[value="${idx}"]`);
-          if (cb) cb.checked = true;
+          const inp = document.querySelector(`#iPromosContainer .promoQtyInput[data-idx="${idx}"]`);
+          if (inp) inp.value = count;
         }
       });
     }
@@ -2470,6 +2493,12 @@ async function loadCatsPage() {
         <button class="btn-icon" onclick="delPromo(${i})" title="Eliminar">🗑️</button>
       </div>
     </div>`).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">Sin promociones. Agrega una con el botón +</div>';
+
+  // Load default prices
+  const pmEl = document.getElementById('catPrecioMayoreo');
+  const ppEl = document.getElementById('catPrecioPublico');
+  if (pmEl) pmEl.value = cats.precioMayoreo || 0;
+  if (ppEl) ppEl.value = cats.precioPublico || 0;
 }
 
 function openAddCat(type) {
@@ -2592,6 +2621,18 @@ async function delPromo(idx) {
     invalidateCatsCache();
     loadCatsPage();
     showToast('Promoción eliminada', 'success');
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function saveDefaultPrices() {
+  const precioMayoreo = parseFloat(document.getElementById('catPrecioMayoreo').value) || 0;
+  const precioPublico = parseFloat(document.getElementById('catPrecioPublico').value) || 0;
+  try {
+    await db.collection('categorias').doc('all').set({ precioMayoreo, precioPublico }, { merge: true });
+    invalidateCatsCache();
+    showToast('Precios por defecto guardados', 'success');
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
@@ -3277,16 +3318,24 @@ function initVendedorInterface() {
     sel.innerHTML = catsCache.ruta.map(r => `<option value="${r}">${r}</option>`).join('');
   }
 
-  // Populate promos as checkboxes
+  // Populate promos as quantity spinners
   const promoCont = document.getElementById('vPromosContainer');
   if (catsCache && catsCache.promociones && catsCache.promociones.length) {
     promoCont.innerHTML = catsCache.promociones.map((p, i) => `
-      <label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">
-        <input type="checkbox" value="${i}" onchange="calcVendedorTotals()" style="accent-color:var(--yellow)" />
-        ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
-      </label>`).join('');
+      <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px">
+        <input type="number" class="vPromoQtyInput" data-idx="${i}" value="0" min="0" max="99" style="width:44px;padding:3px 4px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--yellow);font-size:13px" oninput="calcVendedorTotals()" />
+        <span style="color:var(--yellow)">×</span> ${p.nombre} (${p.tipo === 'porcentaje' ? p.valor + '%' : fmtMoney(p.valor)})
+      </div>`).join('');
   } else {
     promoCont.innerHTML = '<span style="color:var(--muted);font-size:13px">No hay promociones configuradas.</span>';
+  }
+
+  // Apply default prices
+  if (catsCache && catsCache.precioMayoreo) {
+    document.getElementById('vMayPrice').value = catsCache.precioMayoreo;
+  }
+  if (catsCache && catsCache.precioPublico) {
+    document.getElementById('vPubPrice').value = catsCache.precioPublico;
   }
 
   // Load today's route assignment
@@ -3294,8 +3343,12 @@ function initVendedorInterface() {
   loadVendedorHistorial();
 }
 
+let vendMap = null;
+let vendMapMarkers = [];
+
 async function loadVendedorRutaHoy(vendName) {
   const el = document.getElementById('vendRutaHoy');
+  const mapWrap = document.getElementById('vendMiniMapWrap');
   try {
     const hoy = new Date().toISOString().split('T')[0];
     const snap = await db.collection('rutasDia').where('fecha', '==', hoy).get();
@@ -3315,8 +3368,57 @@ async function loadVendedorRutaHoy(vendName) {
     } else {
       el.innerHTML = 'No tienes ruta asignada para hoy. Selecciona una manualmente.';
     }
+    // Show mini-map button
+    if (mapWrap) mapWrap.style.display = '';
+    loadVendMapClients();
   } catch(e) {
     el.innerHTML = 'No se pudo cargar la ruta del día.';
+    if (mapWrap) mapWrap.style.display = '';
+  }
+}
+
+function toggleVendMap() {
+  const container = document.getElementById('vendMiniMapContainer');
+  const btn = container.previousElementSibling;
+  if (container.style.display === 'none') {
+    container.style.display = '';
+    btn.textContent = '🗺️ Ocultar Mapa';
+    if (!vendMap) {
+      vendMap = L.map(container).setView([25.6866, -100.3161], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OSM'
+      }).addTo(vendMap);
+    }
+    setTimeout(() => vendMap.invalidateSize(), 200);
+    loadVendMapClients();
+  } else {
+    container.style.display = 'none';
+    btn.textContent = '🗺️ Ver Mapa de Ruta';
+  }
+}
+
+async function loadVendMapClients() {
+  if (!vendMap) return;
+  vendMapMarkers.forEach(m => vendMap.removeLayer(m));
+  vendMapMarkers = [];
+  try {
+    const snap = await db.collection('clientes').get();
+    const clients = [];
+    snap.forEach(doc => {
+      const c = doc.data();
+      if (c.lat && c.lng) clients.push(c);
+    });
+    if (clients.length) {
+      clients.forEach(c => {
+        const m = L.marker([c.lat, c.lng]).addTo(vendMap)
+          .bindPopup(`<strong>${c.nombre}</strong><br>${c.direccion || ''}<br>${c.telefono || ''}`);
+        vendMapMarkers.push(m);
+      });
+      const group = L.featureGroup(vendMapMarkers);
+      vendMap.fitBounds(group.getBounds().pad(0.1));
+    }
+  } catch(e) {
+    console.error('Error loading map clients:', e);
   }
 }
 
@@ -3342,12 +3444,18 @@ function getVendGastos() {
 }
 
 function getVendPromos() {
-  const checks = document.querySelectorAll('#vPromosContainer input[type=checkbox]:checked');
+  const inputs = document.querySelectorAll('#vPromosContainer .vPromoQtyInput');
   if (!catsCache || !catsCache.promociones) return [];
-  return Array.from(checks).map(cb => {
-    const idx = parseInt(cb.value);
-    return catsCache.promociones[idx];
-  }).filter(Boolean);
+  const result = [];
+  inputs.forEach(inp => {
+    const qty = parseInt(inp.value) || 0;
+    const idx = parseInt(inp.dataset.idx);
+    const p = catsCache.promociones[idx];
+    if (p && qty > 0) {
+      for (let i = 0; i < qty; i++) result.push(p);
+    }
+  });
+  return result;
 }
 
 function calcVendedorTotals() {
@@ -3427,12 +3535,12 @@ async function saveVendedorVenta() {
     showToast('Venta registrada correctamente', 'success');
     // Reset form
     document.getElementById('vMayQty').value = 0;
-    document.getElementById('vMayPrice').value = 0;
+    document.getElementById('vMayPrice').value = catsCache && catsCache.precioMayoreo ? catsCache.precioMayoreo : 0;
     document.getElementById('vPubQty').value = 0;
-    document.getElementById('vPubPrice').value = 0;
+    document.getElementById('vPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
     document.getElementById('vNotas').value = '';
     document.getElementById('vGastosList').innerHTML = '';
-    document.querySelectorAll('#vPromosContainer input[type=checkbox]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#vPromosContainer .vPromoQtyInput').forEach(inp => inp.value = 0);
     calcVendedorTotals();
     loadVendedorHistorial();
   } catch(e) {
