@@ -2839,7 +2839,7 @@ async function openRutaDiaModal() {
   const reps = repartidoresCache.filter(r => r.estado === 'activo');
   document.getElementById('rdRepartidor').innerHTML = reps.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
   const cats = await getCats();
-  const rutas = cats.rutas || [];
+  const rutas = cats.ruta || [];
   document.getElementById('rdRuta').innerHTML = rutas.map(r => `<option value="${r}">${r}</option>`).join('');
   const today = new Date().toISOString().split('T')[0];
   const pendientes = pedidosCache.filter(p => p.fecha === today && p.estado === 'pendiente');
