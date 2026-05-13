@@ -274,6 +274,7 @@
   #toast.show { transform: translateY(0); opacity: 1; }
   #toast.success { border-left: 3px solid var(--green); }
   #toast.error { border-left: 3px solid var(--red); }
+  #toast.info { border-left: 3px solid var(--accent); }
 
   @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
   .empty-state { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
@@ -742,6 +743,17 @@
             </div>
           </div>
 
+          <!-- Pedidos Asignados -->
+          <div class="card" style="margin-bottom:20px;border-left:4px solid var(--yellow)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <h3 style="font-size:16px">📦 Mis Pedidos Asignados</h3>
+              <span id="vendPedidosBadge" style="background:var(--yellow);color:#000;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">0</span>
+            </div>
+            <div id="vendPedidosList">
+              <div class="empty-state" style="padding:16px"><div class="icon">📦</div>No tienes pedidos asignados</div>
+            </div>
+          </div>
+
           <!-- Registrar Venta -->
           <div class="card" style="margin-bottom:20px">
             <h3 style="margin-bottom:16px;font-size:16px">💰 Registrar Venta</h3>
@@ -754,14 +766,14 @@
             <h4 class="section-subtitle" style="color:var(--accent)">Ventas por Mayoreo</h4>
             <div class="form-row">
               <div class="form-group"><label>Cantidad</label><input type="number" id="vMayQty" value="0" min="0" oninput="calcVendedorTotals()" /></div>
-              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vMayPrice" value="0" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vMayPrice" value="0" step="0.01" min="0" readonly style="background:var(--bg3);cursor:not-allowed" /></div>
             </div>
             <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vMaySub" class="amount-pos">$0.00</strong></div>
 
             <h4 class="section-subtitle" style="color:var(--green)">Ventas Público en General</h4>
             <div class="form-row">
               <div class="form-group"><label>Cantidad</label><input type="number" id="vPubQty" value="0" min="0" oninput="calcVendedorTotals()" /></div>
-              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vPubPrice" value="0" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+              <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="vPubPrice" value="0" step="0.01" min="0" readonly style="background:var(--bg3);cursor:not-allowed" /></div>
             </div>
             <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vPubSub" class="amount-pos">$0.00</strong></div>
 
@@ -1247,6 +1259,8 @@ function doLogout() {
   if (unsubPedidos) { unsubPedidos(); unsubPedidos = null; }
   if (unsubRepartidores) { unsubRepartidores(); unsubRepartidores = null; }
   if (unsubRutasDia) { unsubRutasDia(); unsubRutasDia = null; }
+  if (unsubVendPedidos) { unsubVendPedidos(); unsubVendPedidos = null; }
+  vendPedidosKnownIds = new Set();
   ingresosCache = []; egresosCache = [];
   ingresosReady = false; egresosReady = false;
   clientesCache = []; clientesReady = false;
@@ -1255,6 +1269,7 @@ function doLogout() {
   rutasDiaCache = [];
   if (clienteMap) { clienteMap.remove(); clienteMap = null; clienteMarkers = []; }
   if (dashMap) { dashMap.remove(); dashMap = null; dashMarkers = []; }
+  if (vendMap) { vendMap.remove(); vendMap = null; vendMapMarkers = []; }
   auth.signOut();
   currentUser = null;
   currentPerms = {};
@@ -3341,6 +3356,12 @@ function initVendedorInterface() {
   // Load today's route assignment
   loadVendedorRutaHoy(vendName);
   loadVendedorHistorial();
+
+  // Load assigned pedidos and start listener
+  startVendedorPedidosListener(vendName);
+
+  // Request notification permission
+  requestNotificationPermission();
 }
 
 let vendMap = null;
@@ -3419,6 +3440,87 @@ async function loadVendMapClients() {
     }
   } catch(e) {
     console.error('Error loading map clients:', e);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  VENDEDOR — PEDIDOS ASIGNADOS + NOTIFICACIONES
+// ═══════════════════════════════════════════
+let unsubVendPedidos = null;
+let vendPedidosKnownIds = new Set();
+
+function startVendedorPedidosListener(vendName) {
+  if (unsubVendPedidos) unsubVendPedidos();
+  const listEl = document.getElementById('vendPedidosList');
+  const badgeEl = document.getElementById('vendPedidosBadge');
+  if (!listEl) return;
+
+  unsubVendPedidos = db.collection('pedidos').onSnapshot(snap => {
+    const allPedidos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const misPedidos = allPedidos.filter(p => {
+      const rName = (p.repartidorNombre || '').toLowerCase();
+      return rName && rName.includes(vendName.toLowerCase());
+    });
+    misPedidos.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+    // Detect new pedidos for notification
+    misPedidos.forEach(p => {
+      if (!vendPedidosKnownIds.has(p.id) && vendPedidosKnownIds.size > 0) {
+        showPedidoNotification(p);
+      }
+    });
+    vendPedidosKnownIds = new Set(misPedidos.map(p => p.id));
+
+    // Update badge
+    const pendientes = misPedidos.filter(p => p.estado !== 'entregado' && p.estado !== 'cancelado');
+    if (badgeEl) badgeEl.textContent = pendientes.length;
+
+    // Render list
+    if (!misPedidos.length) {
+      listEl.innerHTML = '<div class="empty-state" style="padding:16px"><div class="icon">📦</div>No tienes pedidos asignados</div>';
+      return;
+    }
+
+    listEl.innerHTML = misPedidos.map(p => {
+      const statusColors = { pendiente: 'var(--yellow)', proceso: 'var(--accent)', entregado: 'var(--green)', cancelado: 'var(--red)' };
+      const statusColor = statusColors[p.estado] || 'var(--muted)';
+      const statusLabel = p.estado === 'proceso' ? 'En Proceso' : (p.estado || 'pendiente');
+      return `<div class="pedido-item" style="margin-bottom:6px">
+        <div class="num">${p.cantidad || 0}</div>
+        <div class="info">
+          <div class="name">${p.clienteNombre || 'Sin cliente'}</div>
+          <div class="addr">${p.producto || ''} — ${p.clienteDireccion || ''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.folio || ''} · ${fmtMoney(p.monto || 0)}</div>
+        </div>
+        <span class="status-badge" style="background:${statusColor}20;color:${statusColor};font-size:11px;padding:3px 8px;border-radius:6px;text-transform:capitalize">${statusLabel}</span>
+      </div>`;
+    }).join('');
+  }, err => { console.error('[7M] Vendedor pedidos listener error:', err); });
+}
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function showPedidoNotification(pedido) {
+  // In-app toast
+  showToast(`📦 Nuevo pedido: ${pedido.clienteNombre || 'Cliente'} — ${pedido.producto || ''} x${pedido.cantidad || 1}`, 'info');
+
+  // Browser/mobile notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const n = new Notification('📦 Nuevo Pedido Asignado', {
+        body: `${pedido.clienteNombre || 'Cliente'} — ${pedido.producto || ''} x${pedido.cantidad || 1}\n${fmtMoney(pedido.monto || 0)}`,
+        icon: '💧',
+        tag: 'pedido-' + pedido.id,
+        requireInteraction: true,
+        vibrate: [200, 100, 200]
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch(e) { console.log('Notification error:', e); }
   }
 }
 
