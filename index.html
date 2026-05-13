@@ -858,10 +858,15 @@ function loginSuccess() {
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topUser').textContent = currentUser.nombre;
   applyPerms();
+  startRealtimeListeners();
   loadAllData();
 }
 
 function doLogout() {
+  if (unsubIngresos) { unsubIngresos(); unsubIngresos = null; }
+  if (unsubEgresos) { unsubEgresos(); unsubEgresos = null; }
+  ingresosCache = []; egresosCache = [];
+  ingresosReady = false; egresosReady = false;
   auth.signOut();
   currentUser = null;
   currentPerms = {};
@@ -967,30 +972,64 @@ async function getCats() {
 
 function invalidateCatsCache() { catsCache = null; }
 
+let ingresosCache = [];
+let egresosCache = [];
+let ingresosReady = false;
+let egresosReady = false;
+let unsubIngresos = null;
+let unsubEgresos = null;
+
+function startRealtimeListeners() {
+  if (unsubIngresos) unsubIngresos();
+  if (unsubEgresos) unsubEgresos();
+
+  unsubIngresos = db.collection('ingresos').onSnapshot(snap => {
+    ingresosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    ingresosCache.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    ingresosReady = true;
+    console.log('[7M] Ingresos actualizados en tiempo real:', ingresosCache.length, 'documentos');
+    if (document.getElementById('page-ingresos').classList.contains('active')) loadIngresos();
+    if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  }, err => {
+    console.error('[7M] Error en listener de ingresos:', err);
+    ingresosReady = true;
+  });
+
+  unsubEgresos = db.collection('egresos').onSnapshot(snap => {
+    egresosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    egresosCache.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    egresosReady = true;
+    console.log('[7M] Egresos actualizados en tiempo real:', egresosCache.length, 'documentos');
+    if (document.getElementById('page-egresos').classList.contains('active')) loadEgresos();
+    if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  }, err => {
+    console.error('[7M] Error en listener de egresos:', err);
+    egresosReady = true;
+  });
+}
+
 async function getIngresos() {
+  if (ingresosReady) return [...ingresosCache];
   try {
     const snap = await db.collection('ingresos').get();
-    console.log('[7M] Ingresos leídos de Firestore:', snap.size, 'documentos');
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     docs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return docs;
   } catch (e) {
     console.error('[7M] Error loading ingresos:', e);
-    showToast('Error al cargar entradas: ' + e.message + '. Verifica las reglas de Firestore.', 'error');
     return [];
   }
 }
 
 async function getEgresos() {
+  if (egresosReady) return [...egresosCache];
   try {
     const snap = await db.collection('egresos').get();
-    console.log('[7M] Egresos leídos de Firestore:', snap.size, 'documentos');
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     docs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     return docs;
   } catch (e) {
     console.error('[7M] Error loading egresos:', e);
-    showToast('Error al cargar egresos: ' + e.message + '. Verifica las reglas de Firestore.', 'error');
     return [];
   }
 }
@@ -1317,15 +1356,41 @@ async function saveIngreso() {
       await db.collection('ingresos').doc(editId).update(rec);
       showToast('Entrada actualizada', 'success');
     } else {
-      await db.collection('ingresos').add(rec);
+      const docRef = await db.collection('ingresos').add(rec);
+      rec.id = docRef.id;
       showToast('Entrada registrada correctamente', 'success');
+      appendIngresoRow(rec);
     }
     closeModal('modalIngreso');
-    loadIngresos();
-    renderDashboard();
+    try { await loadIngresos(); } catch(_) {}
+    try { await renderDashboard(); } catch(_) {}
   } catch (e) {
     showToast('Error al guardar: ' + e.message, 'error');
   }
+}
+
+function appendIngresoRow(i) {
+  const tb = document.getElementById('tbIngresos');
+  if (!tb) return;
+  const empty = tb.querySelector('.empty-state');
+  if (empty) tb.innerHTML = '';
+  const canDel = currentUser.rol === 'admin' || currentPerms.delete;
+  const canEdit = currentUser.rol === 'admin' || currentPerms.ingAdd;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${fmtDate(i.fecha)}</td>
+    <td><strong>${i.vendedor || '—'}</strong></td>
+    <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
+    <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
+    <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
+    <td>${i.promocion ? '<span class="badge badge-yellow">' + i.promocion + '</span>' : '—'}</td>
+    <td>${i.gastoMonto ? '<span class="amount-neg">' + fmtMoney(i.gastoMonto) + '</span>' : '—'}</td>
+    <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || 0)}</strong></td>
+    <td>
+      ${canEdit ? `<button class="btn-icon" onclick="editIngreso('${i.id}')" title="Editar">✏️</button>` : ''}
+      ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
+    </td>`;
+  tb.insertBefore(tr, tb.firstChild);
 }
 
 async function delIngreso(id) {
@@ -1420,15 +1485,38 @@ async function saveEgreso() {
       await db.collection('egresos').doc(editId).update(rec);
       showToast('Egreso actualizado', 'success');
     } else {
-      await db.collection('egresos').add(rec);
+      const docRef = await db.collection('egresos').add(rec);
+      rec.id = docRef.id;
       showToast('Egreso registrado', 'success');
+      appendEgresoRow(rec);
     }
     closeModal('modalEgreso');
-    loadEgresos();
-    renderDashboard();
+    try { await loadEgresos(); } catch(_) {}
+    try { await renderDashboard(); } catch(_) {}
   } catch (e) {
     showToast('Error al guardar: ' + e.message, 'error');
   }
+}
+
+function appendEgresoRow(e) {
+  const tb = document.getElementById('tbEgresos');
+  if (!tb) return;
+  const empty = tb.querySelector('.empty-state');
+  if (empty) tb.innerHTML = '';
+  const canDel = currentUser.rol === 'admin' || currentPerms.delete;
+  const canEdit = currentUser.rol === 'admin' || currentPerms.egrAdd;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${fmtDate(e.fecha)}</td>
+    <td>${e.descripcion || '—'}</td>
+    <td><span class="badge badge-red">${e.categoria || '—'}</span></td>
+    <td>${e.proveedor || '—'}</td>
+    <td class="amount-neg">${fmtMoney(e.monto)}</td>
+    <td>
+      ${canEdit ? `<button class="btn-icon" onclick="editEgreso('${e.id}')" title="Editar">✏️</button>` : ''}
+      ${canDel ? `<button class="btn-icon" onclick="delEgreso('${e.id}')" title="Eliminar">🗑️</button>` : ''}
+    </td>`;
+  tb.insertBefore(tr, tb.firstChild);
 }
 
 async function delEgreso(id) {
