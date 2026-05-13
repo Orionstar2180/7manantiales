@@ -951,7 +951,9 @@ function getPeriodLabel(period) {
 async function getCats() {
   if (catsCache) return catsCache;
   try {
-    const snap = await db.collection('categorias').doc('all').get();
+    let snap;
+    try { snap = await db.collection('categorias').doc('all').get({ source: 'server' }); }
+    catch (_) { snap = await db.collection('categorias').doc('all').get(); }
     catsCache = snap.exists ? snap.data() : { egreso: [], ruta: [], vendedor: [], promociones: [] };
     if (!catsCache.promociones) catsCache.promociones = [];
     if (!catsCache.egreso) catsCache.egreso = [];
@@ -969,23 +971,33 @@ function invalidateCatsCache() { catsCache = null; }
 
 async function getIngresos() {
   try {
-    const snap = await db.collection('ingresos').orderBy('ts', 'desc').get();
+    const snap = await db.collection('ingresos').orderBy('ts', 'desc').get({ source: 'server' });
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
-    console.error('Error loading ingresos:', e);
-    showToast('Error al cargar entradas: ' + e.message, 'error');
-    return [];
+    try {
+      const snap = await db.collection('ingresos').orderBy('ts', 'desc').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e2) {
+      console.error('Error loading ingresos:', e2);
+      showToast('Error al cargar entradas: ' + e2.message, 'error');
+      return [];
+    }
   }
 }
 
 async function getEgresos() {
   try {
-    const snap = await db.collection('egresos').orderBy('ts', 'desc').get();
+    const snap = await db.collection('egresos').orderBy('ts', 'desc').get({ source: 'server' });
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
-    console.error('Error loading egresos:', e);
-    showToast('Error al cargar egresos: ' + e.message, 'error');
-    return [];
+    try {
+      const snap = await db.collection('egresos').orderBy('ts', 'desc').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e2) {
+      console.error('Error loading egresos:', e2);
+      showToast('Error al cargar egresos: ' + e2.message, 'error');
+      return [];
+    }
   }
 }
 
