@@ -492,8 +492,8 @@
           </div>
           <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>P\u00fablico</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
-            <tbody id="tbIngresos"><tr><td colspan="9" class="empty-state">Cargando...</td></tr></tbody>
+            <thead><tr><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Rep.</th><th>Mayoreo</th><th>P\u00fablico</th><th>Extras</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
+            <tbody id="tbIngresos"><tr><td colspan="12" class="empty-state">Cargando...</td></tr></tbody>
           </table>
           </div>
           <div id="ingTotal" style="padding:14px 16px;border-top:1px solid var(--border);font-size:14px;display:flex;justify-content:flex-end;gap:6px;">Total: <strong>$0.00</strong></div>
@@ -559,6 +559,11 @@
           <button class="report-period-btn active" onclick="setReportPeriod('semana',this)">Semana</button>
           <button class="report-period-btn" onclick="setReportPeriod('mes',this)">Mes</button>
           <button class="report-period-btn" onclick="setReportPeriod('año',this)">Año</button>
+          <select id="reportTypeFilter" onchange="loadReportes(currentReportPeriod)" style="margin-left:12px;padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+            <option value="ambos">Ingresos y Egresos</option>
+            <option value="ingresos">Solo Ingresos</option>
+            <option value="egresos">Solo Egresos</option>
+          </select>
           <button class="btn-pdf" onclick="exportPDF()" style="margin-left:auto">📄 Exportar PDF</button>
         </div>
         <div class="report-grid">
@@ -631,6 +636,21 @@
               <div class="form-group"><label>Precio Público ($)</label><input type="number" id="catPrecioPublico" value="0" step="0.01" min="0" /></div>
               <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-add" onclick="saveDefaultPrices()">Guardar Precios</button></div>
             </div>
+          </div>
+        </div>
+        <div class="table-card" style="margin-bottom:20px">
+          <div class="table-header"><h3>💲 Precios Extra por Vendedor</h3></div>
+          <div style="padding:16px">
+            <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Agrega precios adicionales para vendedores específicos. Solo ellos verán estos precios extra.</p>
+            <div class="form-row">
+              <div class="form-group"><label>Vendedor</label><select id="catExtraVendedor"></select></div>
+              <div class="form-group"><label>Nombre del Precio</label><input type="text" id="catExtraNombre" placeholder="Ej: Mayoreo Especial" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Precio ($)</label><input type="number" id="catExtraPrecio" value="0" step="0.01" min="0" /></div>
+              <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-add" onclick="addPrecioExtra()">+ Agregar Precio Extra</button></div>
+            </div>
+            <div id="preciosExtraList" style="margin-top:12px"></div>
           </div>
         </div>
       </div>
@@ -777,6 +797,13 @@
             </div>
             <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="vPubSub" class="amount-pos">$0.00</strong></div>
 
+            <!-- Precios Extra del Vendedor (solo visible si tiene) -->
+            <div id="vExtraPricesSection" style="display:none">
+              <div class="section-divider"></div>
+              <h4 class="section-subtitle" style="color:var(--accent)">Precios Extra Asignados</h4>
+              <div id="vExtraPricesContainer"></div>
+            </div>
+
             <div class="section-divider"></div>
             <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — puedes aplicar varias veces)</h4>
             <div id="vPromosContainer" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
@@ -788,9 +815,15 @@
             <button type="button" class="btn-sm" onclick="addVendGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
 
             <div class="section-divider"></div>
+            <h4 class="section-subtitle" style="color:var(--green)">Ingresos Extra (Opcional — otros ingresos aparte de garrafones)</h4>
+            <div id="vIngresosExtraList"></div>
+            <button type="button" class="btn-sm" onclick="addVendIngresoExtraRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--green);color:var(--green)">+ Agregar Ingreso Extra</button>
+
+            <div class="section-divider"></div>
             <div class="totals-box">
               <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="vTotalGarrafones">0</strong></div>
               <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="vTotalVentas">$0.00</strong></div>
+              <div class="totals-row"><span>Ingresos Extra:</span><strong class="amount-pos" id="vTotalExtra">+$0.00</strong></div>
               <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="vTotalDesc">-$0.00</strong></div>
               <div class="totals-row"><span>Gastos:</span><strong class="amount-neg" id="vTotalGasto">-$0.00</strong></div>
               <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="vTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
@@ -837,7 +870,10 @@
       <div class="form-group"><label>Fecha</label><input type="date" id="iDate" /></div>
       <div class="form-group"><label>Vendedor</label><select id="iVend"></select></div>
     </div>
-    <div class="form-group"><label>Ruta</label><select id="iRuta"></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Ruta</label><select id="iRuta"></select></div>
+      <div class="form-group"><label>Repartidor</label><select id="iRepartidor"><option value="">Sin repartidor</option></select></div>
+    </div>
 
     <div class="section-divider"></div>
     <h4 class="section-subtitle" style="color:var(--accent)">Ventas por Mayoreo</h4>
@@ -865,9 +901,15 @@
     <button type="button" class="btn-sm" onclick="addGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
 
     <div class="section-divider"></div>
+    <h4 class="section-subtitle" style="color:var(--green)">Ingresos Extra (Opcional — otros ingresos aparte de garrafones)</h4>
+    <div id="iIngresosExtraList"></div>
+    <button type="button" class="btn-sm" onclick="addIngresoExtraRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--green);color:var(--green)">+ Agregar Ingreso Extra</button>
+
+    <div class="section-divider"></div>
     <div class="totals-box">
       <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="iTotalGarrafones">0</strong></div>
       <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="iTotalVentas">$0.00</strong></div>
+      <div class="totals-row"><span>Ingresos Extra:</span><strong class="amount-pos" id="iTotalExtra">+$0.00</strong></div>
       <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="iTotalDesc">-$0.00</strong></div>
       <div class="totals-row"><span>Gastos Vendedor:</span><strong class="amount-neg" id="iTotalGasto">-$0.00</strong></div>
       <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="iTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
@@ -1470,6 +1512,14 @@ async function populateFilters() {
   fillSelect('iRuta', cats.ruta, false);
   fillSelect('iVend', cats.vendedor, false);
   fillSelect('eCat', cats.egreso, false);
+  // Populate repartidores dropdown in ingreso modal
+  const iRepSel = document.getElementById('iRepartidor');
+  if (iRepSel && repartidoresCache && repartidoresCache.length) {
+    const cur = iRepSel.value;
+    iRepSel.innerHTML = '<option value="">Sin repartidor</option>' +
+      repartidoresCache.filter(r => r.estado === 'activo').map(r => `<option value="${r.nombre}">${r.nombre}</option>`).join('');
+    if (cur) iRepSel.value = cur;
+  }
   const promoCont = document.getElementById('iPromosContainer');
   if (promoCont) {
     promoCont.innerHTML = (cats.promociones || []).map((p, i) => `
@@ -1741,6 +1791,27 @@ function getGastosFromUI() {
   })).filter(g => g.monto > 0 || g.descripcion);
 }
 
+function addIngresoExtraRow(monto, desc) {
+  const list = document.getElementById('iIngresosExtraList');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.marginBottom = '6px';
+  row.innerHTML = `
+    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="extraMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
+    <div class="form-group" style="flex:2"><label>Concepto</label><input type="text" class="extraDesc" value="${desc || ''}" placeholder="Ej: Venta de filtro, servicio..." /></div>
+    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcIngresoTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
+  list.appendChild(row);
+  calcIngresoTotals();
+}
+
+function getIngresosExtraFromUI() {
+  const rows = document.querySelectorAll('#iIngresosExtraList .form-row');
+  return Array.from(rows).map(r => ({
+    monto: parseFloat(r.querySelector('.extraMonto').value) || 0,
+    descripcion: r.querySelector('.extraDesc').value.trim()
+  })).filter(g => g.monto > 0 || g.descripcion);
+}
+
 function getSelectedPromos() {
   const inputs = document.querySelectorAll('#iPromosContainer .promoQtyInput');
   if (!catsCache || !catsCache.promociones) return [];
@@ -1781,10 +1852,14 @@ function calcIngresoTotals() {
   const gastos = getGastosFromUI();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
 
+  const extras = getIngresosExtraFromUI();
+  const totalExtra = extras.reduce((s, g) => s + g.monto, 0);
+
   document.getElementById('iDescuento').value = fmtMoney(descuento);
+  document.getElementById('iTotalExtra').textContent = '+' + fmtMoney(totalExtra);
   document.getElementById('iTotalDesc').textContent = '-' + fmtMoney(descuento);
   document.getElementById('iTotalGasto').textContent = '-' + fmtMoney(totalGasto);
-  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
+  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas + totalExtra - descuento - totalGasto);
 }
 
 async function openIngresoModal() {
@@ -1797,10 +1872,12 @@ async function openIngresoModal() {
   document.getElementById('iPubQty').value = 0;
   document.getElementById('iPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
   document.getElementById('iGastosList').innerHTML = '';
+  document.getElementById('iIngresosExtraList').innerHTML = '';
   document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
   document.getElementById('iNotas').value = '';
   document.getElementById('iVend').value = '';
   document.getElementById('iRuta').value = '';
+  document.getElementById('iRepartidor').value = '';
   calcIngresoTotals();
   openModal('modalIngreso');
 }
@@ -1820,12 +1897,18 @@ async function editIngreso(id) {
     document.getElementById('iMayPrice').value = d.mayoreoPrice || 0;
     document.getElementById('iPubQty').value = d.publicoQty || 0;
     document.getElementById('iPubPrice').value = d.publicoPrice || 0;
+    document.getElementById('iRepartidor').value = d.repartidor || '';
     document.getElementById('iGastosList').innerHTML = '';
     const gastos = d.gastos || [];
     if (gastos.length) {
       gastos.forEach(g => addGastoRow(g.monto, g.descripcion));
     } else if (d.gastoMonto) {
       addGastoRow(d.gastoMonto, d.gastoDescripcion || '');
+    }
+    document.getElementById('iIngresosExtraList').innerHTML = '';
+    const extras = d.ingresosExtra || [];
+    if (extras.length) {
+      extras.forEach(e => addIngresoExtraRow(e.monto, e.descripcion));
     }
     document.getElementById('iNotas').value = d.notas || '';
     document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
@@ -1852,16 +1935,19 @@ async function saveIngreso() {
   const fecha = document.getElementById('iDate').value;
   const vendedor = document.getElementById('iVend').value;
   const ruta = document.getElementById('iRuta').value;
+  const repartidor = document.getElementById('iRepartidor').value;
   const mayoreoQty = parseInt(document.getElementById('iMayQty').value) || 0;
   const mayoreoPrice = parseFloat(document.getElementById('iMayPrice').value) || 0;
   const publicoQty = parseInt(document.getElementById('iPubQty').value) || 0;
   const publicoPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
   const gastos = getGastosFromUI();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
+  const ingresosExtra = getIngresosExtraFromUI();
+  const totalExtra = ingresosExtra.reduce((s, g) => s + g.monto, 0);
   const notas = document.getElementById('iNotas').value;
 
   if (!fecha || !vendedor || !ruta) { showToast('Selecciona fecha, vendedor y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0) { showToast('Ingresa al menos una venta (mayoreo o público)', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0 && ingresosExtra.length === 0) { showToast('Ingresa al menos una venta o un ingreso extra', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
@@ -1875,13 +1961,14 @@ async function saveIngreso() {
     descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
   });
 
-  const montoNeto = totalVentas - descuento - totalGasto;
+  const montoNeto = totalVentas + totalExtra - descuento - totalGasto;
 
   const rec = {
-    fecha, vendedor, ruta,
+    fecha, vendedor, ruta, repartidor: repartidor || '',
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
     totalVentas, totalGarrafones,
+    ingresosExtra, totalExtra,
     promociones, descuento,
     gastos, gastoMonto: totalGasto,
     montoNeto, notas,
@@ -1921,12 +2008,17 @@ function appendIngresoRow(i) {
   const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
   const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
   const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
+  const extrasList = i.ingresosExtra || [];
+  const extraTotal = i.totalExtra || extrasList.reduce((s, e) => s + (e.monto || 0), 0);
+  const extrasHtml = extraTotal ? `<span class="amount-pos">${fmtMoney(extraTotal)}</span>${extrasList.length ? '<br><small style="color:var(--muted)">' + extrasList.map(e => e.descripcion || '').filter(Boolean).join(', ') + '</small>' : ''}` : '—';
   tr.innerHTML = `
     <td>${fmtDate(i.fecha)}</td>
     <td><strong>${i.vendedor || '—'}</strong></td>
     <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
+    <td>${i.repartidor || '—'}</td>
     <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
     <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
+    <td style="font-size:12px">${extrasHtml}</td>
     <td style="font-size:12px">${promoHtml}</td>
     <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' : '—'}</td>
     <td style="text-align:center">${garr}</td>
@@ -2125,9 +2217,12 @@ async function loadRutas() {
 // ═══════════════════════════════════════════
 async function loadReportes(period) {
   currentReportPeriod = period;
+  const reportFilter = document.getElementById('reportTypeFilter') ? document.getElementById('reportTypeFilter').value : 'ambos';
+  const showIng = reportFilter === 'ambos' || reportFilter === 'ingresos';
+  const showEgr = reportFilter === 'ambos' || reportFilter === 'egresos';
   const [ings, egrs] = await Promise.all([getIngresos(), getEgresos()]);
-  const fIng = ings.filter(i => inRange(i.fecha, period));
-  const fEgr = egrs.filter(e => inRange(e.fecha, period));
+  const fIng = showIng ? ings.filter(i => inRange(i.fecha, period)) : [];
+  const fEgr = showEgr ? egrs.filter(e => inRange(e.fecha, period)) : [];
   const totIng = fIng.reduce((s, i) => s + Number(i.montoNeto || i.monto || 0), 0);
   const totEgr = fEgr.reduce((s, e) => s + Number(e.monto || 0), 0);
   const bal = totIng - totEgr;
@@ -2293,10 +2388,13 @@ async function exportPDF() {
   const doc = new jsPDF();
   const period = currentReportPeriod;
   const periodLabel = getPeriodLabel(period);
+  const reportFilter = document.getElementById('reportTypeFilter') ? document.getElementById('reportTypeFilter').value : 'ambos';
+  const showIng = reportFilter === 'ambos' || reportFilter === 'ingresos';
+  const showEgr = reportFilter === 'ambos' || reportFilter === 'egresos';
 
   const [ings, egrs] = await Promise.all([getIngresos(), getEgresos()]);
-  const fIng = ings.filter(i => inRange(i.fecha, period));
-  const fEgr = egrs.filter(e => inRange(e.fecha, period));
+  const fIng = showIng ? ings.filter(i => inRange(i.fecha, period)) : [];
+  const fEgr = showEgr ? egrs.filter(e => inRange(e.fecha, period)) : [];
   const totIng = fIng.reduce((s, i) => s + Number(i.montoNeto || i.monto || 0), 0);
   const totEgr = fEgr.reduce((s, e) => s + Number(e.monto || 0), 0);
   const bal = totIng - totEgr;
@@ -2309,7 +2407,8 @@ async function exportPDF() {
   doc.text('7 Manantiales', 14, 20);
   doc.setFontSize(12);
   doc.setTextColor(100);
-  doc.text('Reporte Financiero — ' + periodLabel, 14, 28);
+  const filterLabel = reportFilter === 'ingresos' ? ' (Solo Ingresos)' : reportFilter === 'egresos' ? ' (Solo Egresos)' : '';
+  doc.text('Reporte Financiero — ' + periodLabel + filterLabel, 14, 28);
   doc.text('Generado: ' + new Date().toLocaleString('es-MX'), 14, 34);
   doc.setDrawColor(200);
   doc.line(14, 38, 196, 38);
@@ -2338,13 +2437,15 @@ async function exportPDF() {
     doc.text('Entradas de Vendedor', 14, doc.lastAutoTable.finalY + 12);
     doc.autoTable({
       startY: doc.lastAutoTable.finalY + 16,
-      head: [['Fecha', 'Vendedor', 'Ruta', 'Mayoreo', 'Público', 'Promos', 'Gastos', 'Garr.', 'Neto']],
+      head: [['Fecha', 'Vendedor', 'Ruta', 'Rep.', 'Mayoreo', 'Público', 'Extras', 'Promos', 'Gastos', 'Garr.', 'Neto']],
       body: fIng.map(i => {
         const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+        const extraTotal = i.totalExtra || (i.ingresosExtra || []).reduce((s, e) => s + (e.monto || 0), 0);
         return [
-          fmtDate(i.fecha), i.vendedor || '', i.ruta || '',
+          fmtDate(i.fecha), i.vendedor || '', i.ruta || '', i.repartidor || '—',
           i.mayoreoQty ? i.mayoreoQty + 'x' + fmtMoney(i.mayoreoPrice || 0) : '—',
           i.publicoQty ? i.publicoQty + 'x' + fmtMoney(i.publicoPrice || 0) : '—',
+          extraTotal ? fmtMoney(extraTotal) : '—',
           pList.length ? pList.join(', ') : '—',
           i.gastoMonto ? fmtMoney(i.gastoMonto) : '—',
           String(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)),
@@ -2514,6 +2615,8 @@ async function loadCatsPage() {
   const ppEl = document.getElementById('catPrecioPublico');
   if (pmEl) pmEl.value = cats.precioMayoreo || 0;
   if (ppEl) ppEl.value = cats.precioPublico || 0;
+
+  loadPreciosExtra();
 }
 
 function openAddCat(type) {
@@ -2651,6 +2754,63 @@ async function saveDefaultPrices() {
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
+}
+
+async function addPrecioExtra() {
+  const vendedor = document.getElementById('catExtraVendedor').value;
+  const nombre = document.getElementById('catExtraNombre').value.trim();
+  const precio = parseFloat(document.getElementById('catExtraPrecio').value) || 0;
+  if (!vendedor || !nombre || !precio) { showToast('Completa vendedor, nombre y precio', 'error'); return; }
+  try {
+    const snap = await db.collection('categorias').doc('all').get();
+    const data = snap.exists ? snap.data() : {};
+    const preciosExtra = data.preciosExtra || [];
+    preciosExtra.push({ vendedor, nombre, precio });
+    await db.collection('categorias').doc('all').set({ preciosExtra }, { merge: true });
+    invalidateCatsCache();
+    document.getElementById('catExtraNombre').value = '';
+    document.getElementById('catExtraPrecio').value = 0;
+    showToast(`Precio extra "$${precio} - ${nombre}" agregado para ${vendedor}`, 'success');
+    loadPreciosExtra();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function deletePrecioExtra(idx) {
+  if (!confirm('¿Eliminar este precio extra?')) return;
+  try {
+    const snap = await db.collection('categorias').doc('all').get();
+    const data = snap.exists ? snap.data() : {};
+    const preciosExtra = data.preciosExtra || [];
+    preciosExtra.splice(idx, 1);
+    await db.collection('categorias').doc('all').set({ preciosExtra }, { merge: true });
+    invalidateCatsCache();
+    showToast('Precio extra eliminado', 'success');
+    loadPreciosExtra();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function loadPreciosExtra() {
+  const list = document.getElementById('preciosExtraList');
+  if (!list) return;
+  const cats = await getCats();
+  const preciosExtra = cats.preciosExtra || [];
+  // Populate vendedor select
+  const sel = document.getElementById('catExtraVendedor');
+  if (sel && cats.vendedor) {
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      cats.vendedor.map(v => `<option value="${v}">${v}</option>`).join('');
+  }
+  if (!preciosExtra.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:13px">No hay precios extra configurados.</span>';
+    return;
+  }
+  list.innerHTML = preciosExtra.map((p, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <span style="color:var(--accent);font-weight:600">${p.vendedor}</span>
+      <span style="color:var(--muted)">—</span>
+      <span>${p.nombre}: <strong style="color:var(--green)">$${p.precio.toFixed(2)}</strong></span>
+      <button class="btn-icon" onclick="deletePrecioExtra(${i})" title="Eliminar" style="margin-left:auto;color:var(--red)">✕</button>
+    </div>`).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -3399,6 +3559,25 @@ function initVendedorInterface() {
     document.getElementById('vPubPrice').value = catsCache.precioPublico;
   }
 
+  // Show extra prices if this vendedor has custom prices
+  const extraSection = document.getElementById('vExtraPricesSection');
+  const extraContainer = document.getElementById('vExtraPricesContainer');
+  if (catsCache && catsCache.preciosExtra && extraSection && extraContainer) {
+    const myExtras = catsCache.preciosExtra.filter(p => p.vendedor.toUpperCase() === vendName.toUpperCase());
+    if (myExtras.length) {
+      extraSection.style.display = 'block';
+      extraContainer.innerHTML = myExtras.map((p, i) => `
+        <div class="form-row" style="margin-bottom:6px">
+          <div class="form-group" style="flex:2"><label>${p.nombre}</label><input type="number" id="vExtraPrice_${i}" value="${p.precio}" step="0.01" min="0" readonly style="background:var(--bg3);cursor:not-allowed" /></div>
+          <div class="form-group" style="flex:1"><label>Cantidad</label><input type="number" class="vExtraQtyInput" data-extra-idx="${i}" data-extra-price="${p.precio}" data-extra-name="${p.nombre}" value="0" min="0" oninput="calcVendedorTotals()" /></div>
+        </div>
+        <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong class="vExtraSub amount-pos" data-extra-idx="${i}">$0.00</strong></div>
+      `).join('');
+    } else {
+      extraSection.style.display = 'none';
+    }
+  }
+
   // Load today's route assignment
   loadVendedorRutaHoy(vendName);
   loadVendedorHistorial();
@@ -3596,9 +3775,12 @@ async function marcarPedidoEntregado(pedidoId) {
       fecha: p.fecha || new Date().toISOString().split('T')[0],
       vendedor: vendedor,
       ruta: document.getElementById('vRuta') ? document.getElementById('vRuta').value : '',
+      repartidor: vendedor,
       mayoreoQty: cantidad, mayoreoPrice: p.precio || mayoreoPrice, mayoreoSubtotal: totalVentas,
       publicoQty: 0, publicoPrice: publicoPrice, publicoSubtotal: 0,
       totalVentas: totalVentas, totalGarrafones: cantidad,
+      ingresosExtra: [], totalExtra: 0,
+      preciosExtra: [],
       promociones: [], descuento: 0,
       gastos: [], gastoMonto: 0,
       montoNeto: totalVentas,
@@ -3652,6 +3834,39 @@ function getVendPromos() {
   return result;
 }
 
+function addVendIngresoExtraRow(monto, desc) {
+  const list = document.getElementById('vIngresosExtraList');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.marginBottom = '6px';
+  row.innerHTML = `
+    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="vExtraMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
+    <div class="form-group" style="flex:2"><label>Concepto</label><input type="text" class="vExtraDesc" value="${desc || ''}" placeholder="Ej: Venta de filtro, servicio..." /></div>
+    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcVendedorTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
+  list.appendChild(row);
+  calcVendedorTotals();
+}
+
+function getVendIngresosExtra() {
+  const rows = document.querySelectorAll('#vIngresosExtraList .form-row');
+  return Array.from(rows).map(r => ({
+    monto: parseFloat(r.querySelector('.vExtraMonto').value) || 0,
+    descripcion: r.querySelector('.vExtraDesc').value.trim()
+  })).filter(g => g.monto > 0 || g.descripcion);
+}
+
+function getVendExtraPrices() {
+  const inputs = document.querySelectorAll('.vExtraQtyInput');
+  const result = [];
+  inputs.forEach(inp => {
+    const qty = parseInt(inp.value) || 0;
+    const price = parseFloat(inp.dataset.extraPrice) || 0;
+    const name = inp.dataset.extraName || '';
+    if (qty > 0) result.push({ nombre: name, precio: price, cantidad: qty, subtotal: qty * price });
+  });
+  return result;
+}
+
 function calcVendedorTotals() {
   const mayQty = parseInt(document.getElementById('vMayQty').value) || 0;
   const mayPrice = parseFloat(document.getElementById('vMayPrice').value) || 0;
@@ -3660,8 +3875,26 @@ function calcVendedorTotals() {
 
   const maySub = mayQty * mayPrice;
   const pubSub = pubQty * pubPrice;
-  const totalVentas = maySub + pubSub;
-  const totalGarrafones = mayQty + pubQty;
+  let totalVentas = maySub + pubSub;
+  let totalGarrafones = mayQty + pubQty;
+
+  // Extra prices (custom per vendedor)
+  const extraPrices = getVendExtraPrices();
+  let extraPriceSub = 0;
+  extraPrices.forEach(ep => {
+    extraPriceSub += ep.subtotal;
+    totalGarrafones += ep.cantidad;
+  });
+  totalVentas += extraPriceSub;
+
+  // Update extra price subtotals
+  document.querySelectorAll('.vExtraQtyInput').forEach(inp => {
+    const idx = inp.dataset.extraIdx;
+    const qty = parseInt(inp.value) || 0;
+    const price = parseFloat(inp.dataset.extraPrice) || 0;
+    const subEl = document.querySelector(`.vExtraSub[data-extra-idx="${idx}"]`);
+    if (subEl) subEl.textContent = fmtMoney(qty * price);
+  });
 
   document.getElementById('vMaySub').textContent = fmtMoney(maySub);
   document.getElementById('vPubSub').textContent = fmtMoney(pubSub);
@@ -3677,10 +3910,14 @@ function calcVendedorTotals() {
   const gastos = getVendGastos();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
 
+  const vendExtras = getVendIngresosExtra();
+  const totalExtra = vendExtras.reduce((s, g) => s + g.monto, 0);
+
   document.getElementById('vDescuento').value = fmtMoney(descuento);
+  document.getElementById('vTotalExtra').textContent = '+' + fmtMoney(totalExtra);
   document.getElementById('vTotalDesc').textContent = '-' + fmtMoney(descuento);
   document.getElementById('vTotalGasto').textContent = '-' + fmtMoney(totalGasto);
-  document.getElementById('vTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
+  document.getElementById('vTotalNeto').textContent = fmtMoney(totalVentas + totalExtra - descuento - totalGasto);
 }
 
 async function saveVendedorVenta() {
@@ -3693,13 +3930,22 @@ async function saveVendedorVenta() {
   const publicoPrice = parseFloat(document.getElementById('vPubPrice').value) || 0;
   const notas = document.getElementById('vNotas').value;
 
+  const vendExtras = getVendIngresosExtra();
+  const totalExtra = vendExtras.reduce((s, g) => s + g.monto, 0);
+  const extraPrices = getVendExtraPrices();
+
   if (!fecha || !ruta) { showToast('Selecciona fecha y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0 && vendExtras.length === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta o un ingreso extra', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
-  const totalVentas = mayoreoSubtotal + publicoSubtotal;
-  const totalGarrafones = mayoreoQty + publicoQty;
+  let totalVentas = mayoreoSubtotal + publicoSubtotal;
+  let totalGarrafones = mayoreoQty + publicoQty;
+
+  extraPrices.forEach(ep => {
+    totalVentas += ep.subtotal;
+    totalGarrafones += ep.cantidad;
+  });
 
   let descuento = 0;
   const promos = getVendPromos();
@@ -3710,13 +3956,15 @@ async function saveVendedorVenta() {
 
   const gastos = getVendGastos();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
-  const montoNeto = totalVentas - descuento - totalGasto;
+  const montoNeto = totalVentas + totalExtra - descuento - totalGasto;
 
   const rec = {
     fecha, vendedor, ruta,
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
     totalVentas, totalGarrafones,
+    preciosExtra: extraPrices,
+    ingresosExtra: vendExtras, totalExtra,
     promociones, descuento,
     gastos, gastoMonto: totalGasto,
     montoNeto, notas,
@@ -3734,7 +3982,9 @@ async function saveVendedorVenta() {
     document.getElementById('vPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
     document.getElementById('vNotas').value = '';
     document.getElementById('vGastosList').innerHTML = '';
+    document.getElementById('vIngresosExtraList').innerHTML = '';
     document.querySelectorAll('#vPromosContainer .vPromoQtyInput').forEach(inp => inp.value = 0);
+    document.querySelectorAll('.vExtraQtyInput').forEach(inp => inp.value = 0);
     calcVendedorTotals();
     loadVendedorHistorial();
   } catch(e) {
