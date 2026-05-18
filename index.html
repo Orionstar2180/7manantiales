@@ -477,13 +477,23 @@
           <span class="filter-label">Filtrar:</span>
           <select id="fIngRuta" onchange="loadIngresos()"><option value="">Todas las rutas</option></select>
           <select id="fIngVendedor" onchange="loadIngresos()"><option value="">Todos los vendedores</option></select>
-          <select id="fIngPeriodo" onchange="loadIngresos()">
+          <select id="fIngPeriodo" onchange="toggleIngCustomDate();loadIngresos()">
             <option value="dia">Hoy</option>
             <option value="semana">Esta semana</option>
             <option value="mes" selected>Este mes</option>
             <option value="año">Este año</option>
             <option value="todo">Todo</option>
+            <option value="personalizado">📅 Personalizado</option>
           </select>
+        </div>
+        <div id="ingCustomDateRange" style="display:none;margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:13px;color:var(--muted)">Desde:</label>
+            <input type="date" id="ingDateFrom" style="padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" />
+            <label style="font-size:13px;color:var(--muted)">Hasta:</label>
+            <input type="date" id="ingDateTo" style="padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" />
+            <button class="btn-add" style="padding:5px 14px;font-size:12px" onclick="applyIngCustomDate()">Aplicar</button>
+          </div>
         </div>
         <div class="table-card">
           <div class="table-header">
@@ -510,13 +520,23 @@
         <div class="filters-bar">
           <span class="filter-label">Filtrar:</span>
           <select id="fEgrCat" onchange="loadEgresos()"><option value="">Todas las categorías</option></select>
-          <select id="fEgrPeriodo" onchange="loadEgresos()">
+          <select id="fEgrPeriodo" onchange="toggleEgrCustomDate();loadEgresos()">
             <option value="dia">Hoy</option>
             <option value="semana">Esta semana</option>
             <option value="mes" selected>Este mes</option>
             <option value="año">Este año</option>
             <option value="todo">Todo</option>
+            <option value="personalizado">📅 Personalizado</option>
           </select>
+        </div>
+        <div id="egrCustomDateRange" style="display:none;margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:13px;color:var(--muted)">Desde:</label>
+            <input type="date" id="egrDateFrom" style="padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" />
+            <label style="font-size:13px;color:var(--muted)">Hasta:</label>
+            <input type="date" id="egrDateTo" style="padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" />
+            <button class="btn-add" style="padding:5px 14px;font-size:12px" onclick="applyEgrCustomDate()">Aplicar</button>
+          </div>
         </div>
         <div class="table-card">
           <div class="table-header">
@@ -562,12 +582,26 @@
           <button class="report-period-btn active" onclick="setReportPeriod('semana',this)">Semana</button>
           <button class="report-period-btn" onclick="setReportPeriod('mes',this)">Mes</button>
           <button class="report-period-btn" onclick="setReportPeriod('año',this)">Año</button>
+          <button class="report-period-btn" onclick="setReportPeriod('personalizado',this)">📅 Personalizado</button>
           <select id="reportTypeFilter" onchange="loadReportes(currentReportPeriod)" style="margin-left:12px;padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
             <option value="ambos">Ingresos y Egresos</option>
             <option value="ingresos">Solo Ingresos</option>
             <option value="egresos">Solo Egresos</option>
           </select>
           <button class="btn-pdf" onclick="exportPDF()" style="margin-left:auto">📄 Exportar PDF</button>
+        </div>
+        <div id="customDateRange" style="display:none;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:10px;border:1px solid var(--border)">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <label style="font-size:13px;color:var(--muted)">Desde:</label>
+              <input type="date" id="repDateFrom" style="padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <label style="font-size:13px;color:var(--muted)">Hasta:</label>
+              <input type="date" id="repDateTo" style="padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px" />
+            </div>
+            <button class="btn-add" style="padding:6px 16px;font-size:13px" onclick="applyCustomDateRange()">Aplicar</button>
+          </div>
         </div>
         <div class="report-grid">
           <div class="report-mini"><div class="report-mini-label">Total Ingresos</div><div class="report-mini-val amount-pos" id="rep-ing">$0</div></div>
@@ -1397,10 +1431,15 @@ function goTo(page) {
 // ═══════════════════════════════════════════
 //  UTILS
 // ═══════════════════════════════════════════
+let customDateFrom = null;
+let customDateTo = null;
+
 function getDateRange(period) {
   const now = new Date();
   let start;
-  if (period === 'dia') {
+  if (period === 'personalizado' && customDateFrom && customDateTo) {
+    return { start: new Date(customDateFrom + 'T00:00:00'), end: new Date(customDateTo + 'T23:59:59') };
+  } else if (period === 'dia') {
     start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   } else if (period === 'semana') {
     start = new Date(now); start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0);
@@ -1424,6 +1463,9 @@ function fmtDate(s) { if (!s) return '—'; const p = s.split('-'); return p[2] 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 function getPeriodLabel(period) {
+  if (period === 'personalizado' && customDateFrom && customDateTo) {
+    return fmtDate(customDateFrom) + ' — ' + fmtDate(customDateTo);
+  }
   const labels = { dia: 'Hoy', semana: 'Esta Semana', mes: 'Este Mes', año: 'Este Año', todo: 'Todo' };
   return labels[period] || period;
 }
@@ -2544,7 +2586,56 @@ async function loadReportes(period) {
 function setReportPeriod(p, btn) {
   document.querySelectorAll('.report-period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const customPanel = document.getElementById('customDateRange');
+  if (p === 'personalizado') {
+    customPanel.style.display = 'block';
+    if (!document.getElementById('repDateFrom').value) {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      document.getElementById('repDateFrom').value = firstDay.toISOString().split('T')[0];
+      document.getElementById('repDateTo').value = todayStr();
+    }
+    return;
+  }
+  customPanel.style.display = 'none';
   loadReportes(p);
+}
+
+function applyCustomDateRange() {
+  const from = document.getElementById('repDateFrom').value;
+  const to = document.getElementById('repDateTo').value;
+  if (!from || !to) { showToast('Selecciona ambas fechas', 'error'); return; }
+  if (from > to) { showToast('La fecha "Desde" debe ser anterior a "Hasta"', 'error'); return; }
+  customDateFrom = from;
+  customDateTo = to;
+  loadReportes('personalizado');
+}
+
+function toggleIngCustomDate() {
+  const p = document.getElementById('fIngPeriodo').value;
+  document.getElementById('ingCustomDateRange').style.display = p === 'personalizado' ? 'block' : 'none';
+}
+function applyIngCustomDate() {
+  const from = document.getElementById('ingDateFrom').value;
+  const to = document.getElementById('ingDateTo').value;
+  if (!from || !to) { showToast('Selecciona ambas fechas', 'error'); return; }
+  if (from > to) { showToast('La fecha "Desde" debe ser anterior a "Hasta"', 'error'); return; }
+  customDateFrom = from;
+  customDateTo = to;
+  loadIngresos();
+}
+function toggleEgrCustomDate() {
+  const p = document.getElementById('fEgrPeriodo').value;
+  document.getElementById('egrCustomDateRange').style.display = p === 'personalizado' ? 'block' : 'none';
+}
+function applyEgrCustomDate() {
+  const from = document.getElementById('egrDateFrom').value;
+  const to = document.getElementById('egrDateTo').value;
+  if (!from || !to) { showToast('Selecciona ambas fechas', 'error'); return; }
+  if (from > to) { showToast('La fecha "Desde" debe ser anterior a "Hasta"', 'error'); return; }
+  customDateFrom = from;
+  customDateTo = to;
+  loadEgresos();
 }
 
 async function exportPDF() {
