@@ -488,12 +488,15 @@
         <div class="table-card">
           <div class="table-header">
             <h3>Entradas Registradas</h3>
-            <button class="btn-add" id="btnAddIngreso" onclick="openIngresoModal()">+ Nueva Entrada</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn-add" id="btnAddIngreso" onclick="openIngresoModal()">+ Ingreso de Ventas</button>
+              <button class="btn-add" style="background:var(--green)" onclick="openIngresoExtraModal()">+ Ingreso Extra</button>
+            </div>
           </div>
           <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Rep.</th><th>Mayoreo</th><th>P\u00fablico</th><th>Extras</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
-            <tbody id="tbIngresos"><tr><td colspan="12" class="empty-state">Cargando...</td></tr></tbody>
+            <thead><tr><th>Tipo</th><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>P\u00fablico</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
+            <tbody id="tbIngresos"><tr><td colspan="11" class="empty-state">Cargando...</td></tr></tbody>
           </table>
           </div>
           <div id="ingTotal" style="padding:14px 16px;border-top:1px solid var(--border);font-size:14px;display:flex;justify-content:flex-end;gap:6px;">Total: <strong>$0.00</strong></div>
@@ -815,15 +818,9 @@
             <button type="button" class="btn-sm" onclick="addVendGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
 
             <div class="section-divider"></div>
-            <h4 class="section-subtitle" style="color:var(--green)">Ingresos Extra (Opcional — otros ingresos aparte de garrafones)</h4>
-            <div id="vIngresosExtraList"></div>
-            <button type="button" class="btn-sm" onclick="addVendIngresoExtraRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--green);color:var(--green)">+ Agregar Ingreso Extra</button>
-
-            <div class="section-divider"></div>
             <div class="totals-box">
               <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="vTotalGarrafones">0</strong></div>
               <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="vTotalVentas">$0.00</strong></div>
-              <div class="totals-row"><span>Ingresos Extra:</span><strong class="amount-pos" id="vTotalExtra">+$0.00</strong></div>
               <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="vTotalDesc">-$0.00</strong></div>
               <div class="totals-row"><span>Gastos:</span><strong class="amount-neg" id="vTotalGasto">-$0.00</strong></div>
               <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="vTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
@@ -831,6 +828,7 @@
 
             <div class="form-group"><label>Notas (opcional)</label><textarea id="vNotas" rows="2" placeholder="Observaciones..."></textarea></div>
             <button class="btn-add" style="width:100%;margin-top:10px" onclick="saveVendedorVenta()">Registrar Venta</button>
+            <button class="btn-add" style="width:100%;margin-top:8px;background:var(--green)" onclick="openVendIngresoExtraModal()">+ Ingreso Extra</button>
           </div>
 
           <!-- Historial de Ventas -->
@@ -901,15 +899,9 @@
     <button type="button" class="btn-sm" onclick="addGastoRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--red);color:var(--red)">+ Agregar Gasto</button>
 
     <div class="section-divider"></div>
-    <h4 class="section-subtitle" style="color:var(--green)">Ingresos Extra (Opcional — otros ingresos aparte de garrafones)</h4>
-    <div id="iIngresosExtraList"></div>
-    <button type="button" class="btn-sm" onclick="addIngresoExtraRow()" style="margin-bottom:10px;background:var(--bg3);border:1px dashed var(--green);color:var(--green)">+ Agregar Ingreso Extra</button>
-
-    <div class="section-divider"></div>
     <div class="totals-box">
       <div class="totals-row"><span>Total Garrafones:</span><strong style="color:var(--muted)" id="iTotalGarrafones">0</strong></div>
       <div class="totals-row"><span>Total Ventas:</span><strong class="amount-pos" id="iTotalVentas">$0.00</strong></div>
-      <div class="totals-row"><span>Ingresos Extra:</span><strong class="amount-pos" id="iTotalExtra">+$0.00</strong></div>
       <div class="totals-row"><span>Descuento (Promos):</span><strong style="color:var(--yellow)" id="iTotalDesc">-$0.00</strong></div>
       <div class="totals-row"><span>Gastos Vendedor:</span><strong class="amount-neg" id="iTotalGasto">-$0.00</strong></div>
       <div class="totals-row final"><span style="font-weight:700">Total Neto a Entregar:</span><strong id="iTotalNeto" style="color:var(--accent);font-size:18px">$0.00</strong></div>
@@ -919,6 +911,26 @@
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modalIngreso')">Cancelar</button>
       <button class="btn-add" onclick="saveIngreso()">Guardar Entrada</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ingreso Extra (Separado de Ventas) -->
+<div class="modal-overlay" id="modalIngresoExtra">
+  <div class="modal" style="width:480px">
+    <h3 class="modal-title">💲 Ingreso Extra</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Registrar un ingreso que no es venta de garrafones (ej: venta de filtros, servicios, cobros, etc.)</p>
+    <input type="hidden" id="editingIngresoExtraId" value="" />
+    <div class="form-row">
+      <div class="form-group"><label>Fecha</label><input type="date" id="ieDate" /></div>
+      <div class="form-group"><label>Vendedor</label><select id="ieVend"></select></div>
+    </div>
+    <div class="form-group"><label>Concepto / Descripción</label><input type="text" id="ieConcepto" placeholder="Ej: Venta de filtro, servicio de instalación, cobro pendiente..." /></div>
+    <div class="form-group"><label>Monto ($)</label><input type="number" id="ieMonto" value="0" step="0.01" min="0" /></div>
+    <div class="form-group"><label>Notas (opcional)</label><textarea id="ieNotas" rows="2" placeholder="Observaciones adicionales..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalIngresoExtra')">Cancelar</button>
+      <button class="btn-add" style="background:var(--green)" onclick="saveIngresoExtra()">Guardar Ingreso Extra</button>
     </div>
   </div>
 </div>
@@ -1742,15 +1754,31 @@ async function loadIngresos() {
   const tb = document.getElementById('tbIngresos');
   const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
   if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
   } else {
     tb.innerHTML = data.map(i => {
+      const isExtra = i.tipo === 'extra';
+      if (isExtra) {
+        return `<tr>
+          <td><span class="badge" style="background:var(--green);color:#000;font-size:11px">EXTRA</span></td>
+          <td>${fmtDate(i.fecha)}</td>
+          <td><strong>${i.vendedor || '—'}</strong></td>
+          <td colspan="5" style="font-size:13px"><strong style="color:var(--green)">${i.concepto || '—'}</strong>${i.notas ? '<br><small style="color:var(--muted)">' + i.notas + '</small>' : ''}</td>
+          <td style="text-align:center">—</td>
+          <td class="amount-pos"><strong>${fmtMoney(i.monto || i.montoNeto || 0)}</strong></td>
+          <td>
+            ${canEdit ? `<button class="btn-icon" onclick="editIngresoExtra('${i.id}')" title="Editar">✏️</button>` : ''}
+            ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
+          </td>
+        </tr>`;
+      }
       const pList = i.promociones || (i.promocion ? [i.promocion] : []);
       const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
       const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto, descripcion: i.gastoDescripcion || ''}] : []);
       const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
       const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
       return `<tr>
+        <td><span class="badge badge-blue" style="font-size:11px">VENTA</span></td>
         <td>${fmtDate(i.fecha)}</td>
         <td><strong>${i.vendedor || '—'}</strong></td>
         <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
@@ -1791,25 +1819,72 @@ function getGastosFromUI() {
   })).filter(g => g.monto > 0 || g.descripcion);
 }
 
-function addIngresoExtraRow(monto, desc) {
-  const list = document.getElementById('iIngresosExtraList');
-  const row = document.createElement('div');
-  row.className = 'form-row';
-  row.style.marginBottom = '6px';
-  row.innerHTML = `
-    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="extraMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
-    <div class="form-group" style="flex:2"><label>Concepto</label><input type="text" class="extraDesc" value="${desc || ''}" placeholder="Ej: Venta de filtro, servicio..." /></div>
-    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcIngresoTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
-  list.appendChild(row);
-  calcIngresoTotals();
+async function openIngresoExtraModal(editId) {
+  await populateFilters();
+  document.getElementById('editingIngresoExtraId').value = editId || '';
+  document.getElementById('ieDate').value = todayStr();
+  document.getElementById('ieConcepto').value = '';
+  document.getElementById('ieMonto').value = 0;
+  document.getElementById('ieNotas').value = '';
+  // Populate vendedor dropdown
+  const ieVend = document.getElementById('ieVend');
+  ieVend.innerHTML = '<option value="">— Seleccionar —</option>';
+  if (catsCache && catsCache.vendedores) {
+    catsCache.vendedores.forEach(v => {
+      const o = document.createElement('option'); o.value = v; o.textContent = v; ieVend.appendChild(o);
+    });
+  }
+  if (editId) {
+    try {
+      const doc = await db.collection('ingresos').doc(editId).get();
+      if (doc.exists) {
+        const d = doc.data();
+        document.getElementById('ieDate').value = d.fecha || '';
+        document.getElementById('ieVend').value = d.vendedor || '';
+        document.getElementById('ieConcepto').value = d.concepto || '';
+        document.getElementById('ieMonto').value = d.monto || 0;
+        document.getElementById('ieNotas').value = d.notas || '';
+      }
+    } catch(e) { showToast('Error cargando datos', 'error'); }
+  }
+  openModal('modalIngresoExtra');
 }
 
-function getIngresosExtraFromUI() {
-  const rows = document.querySelectorAll('#iIngresosExtraList .form-row');
-  return Array.from(rows).map(r => ({
-    monto: parseFloat(r.querySelector('.extraMonto').value) || 0,
-    descripcion: r.querySelector('.extraDesc').value.trim()
-  })).filter(g => g.monto > 0 || g.descripcion);
+function editIngresoExtra(id) {
+  openIngresoExtraModal(id);
+}
+
+async function saveIngresoExtra() {
+  const fecha = document.getElementById('ieDate').value;
+  const vendedor = document.getElementById('ieVend').value;
+  const concepto = document.getElementById('ieConcepto').value.trim();
+  const monto = parseFloat(document.getElementById('ieMonto').value) || 0;
+  const notas = document.getElementById('ieNotas').value.trim();
+
+  if (!fecha) { showToast('Selecciona una fecha', 'error'); return; }
+  if (!concepto) { showToast('Escribe el concepto del ingreso', 'error'); return; }
+  if (monto <= 0) { showToast('El monto debe ser mayor a 0', 'error'); return; }
+
+  const rec = {
+    tipo: 'extra',
+    fecha, vendedor: vendedor || '', concepto, monto, montoNeto: monto, notas,
+    creadoPor: currentUser.nombre,
+    ts: new Date(fecha + 'T12:00:00').getTime()
+  };
+
+  const editId = document.getElementById('editingIngresoExtraId').value;
+  try {
+    if (editId) {
+      await db.collection('ingresos').doc(editId).update(rec);
+      showToast('Ingreso extra actualizado', 'success');
+    } else {
+      await db.collection('ingresos').add(rec);
+      showToast('Ingreso extra registrado', 'success');
+    }
+    closeModal('modalIngresoExtra');
+    invalidateIngCache();
+    loadIngresos();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 function getSelectedPromos() {
@@ -1852,14 +1927,10 @@ function calcIngresoTotals() {
   const gastos = getGastosFromUI();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
 
-  const extras = getIngresosExtraFromUI();
-  const totalExtra = extras.reduce((s, g) => s + g.monto, 0);
-
   document.getElementById('iDescuento').value = fmtMoney(descuento);
-  document.getElementById('iTotalExtra').textContent = '+' + fmtMoney(totalExtra);
   document.getElementById('iTotalDesc').textContent = '-' + fmtMoney(descuento);
   document.getElementById('iTotalGasto').textContent = '-' + fmtMoney(totalGasto);
-  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas + totalExtra - descuento - totalGasto);
+  document.getElementById('iTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
 }
 
 async function openIngresoModal() {
@@ -1872,7 +1943,6 @@ async function openIngresoModal() {
   document.getElementById('iPubQty').value = 0;
   document.getElementById('iPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
   document.getElementById('iGastosList').innerHTML = '';
-  document.getElementById('iIngresosExtraList').innerHTML = '';
   document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
   document.getElementById('iNotas').value = '';
   document.getElementById('iVend').value = '';
@@ -1904,11 +1974,6 @@ async function editIngreso(id) {
       gastos.forEach(g => addGastoRow(g.monto, g.descripcion));
     } else if (d.gastoMonto) {
       addGastoRow(d.gastoMonto, d.gastoDescripcion || '');
-    }
-    document.getElementById('iIngresosExtraList').innerHTML = '';
-    const extras = d.ingresosExtra || [];
-    if (extras.length) {
-      extras.forEach(e => addIngresoExtraRow(e.monto, e.descripcion));
     }
     document.getElementById('iNotas').value = d.notas || '';
     document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
@@ -1942,12 +2007,10 @@ async function saveIngreso() {
   const publicoPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
   const gastos = getGastosFromUI();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
-  const ingresosExtra = getIngresosExtraFromUI();
-  const totalExtra = ingresosExtra.reduce((s, g) => s + g.monto, 0);
   const notas = document.getElementById('iNotas').value;
 
   if (!fecha || !vendedor || !ruta) { showToast('Selecciona fecha, vendedor y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0 && ingresosExtra.length === 0) { showToast('Ingresa al menos una venta o un ingreso extra', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
@@ -1961,14 +2024,14 @@ async function saveIngreso() {
     descuento += p.tipo === 'porcentaje' ? totalVentas * (p.valor / 100) : p.valor;
   });
 
-  const montoNeto = totalVentas + totalExtra - descuento - totalGasto;
+  const montoNeto = totalVentas - descuento - totalGasto;
 
   const rec = {
+    tipo: 'venta',
     fecha, vendedor, ruta, repartidor: repartidor || '',
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
     totalVentas, totalGarrafones,
-    ingresosExtra, totalExtra,
     promociones, descuento,
     gastos, gastoMonto: totalGasto,
     montoNeto, notas,
@@ -2003,30 +2066,41 @@ function appendIngresoRow(i) {
   const canDel = currentUser.rol === 'admin' || currentPerms.delete;
   const canEdit = currentUser.rol === 'admin' || currentPerms.ingAdd;
   const tr = document.createElement('tr');
-  const pList = i.promociones || (i.promocion ? [i.promocion] : []);
-  const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
-  const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
-  const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
-  const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
-  const extrasList = i.ingresosExtra || [];
-  const extraTotal = i.totalExtra || extrasList.reduce((s, e) => s + (e.monto || 0), 0);
-  const extrasHtml = extraTotal ? `<span class="amount-pos">${fmtMoney(extraTotal)}</span>${extrasList.length ? '<br><small style="color:var(--muted)">' + extrasList.map(e => e.descripcion || '').filter(Boolean).join(', ') + '</small>' : ''}` : '—';
-  tr.innerHTML = `
-    <td>${fmtDate(i.fecha)}</td>
-    <td><strong>${i.vendedor || '—'}</strong></td>
-    <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
-    <td>${i.repartidor || '—'}</td>
-    <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
-    <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
-    <td style="font-size:12px">${extrasHtml}</td>
-    <td style="font-size:12px">${promoHtml}</td>
-    <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' : '—'}</td>
-    <td style="text-align:center">${garr}</td>
-    <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || 0)}</strong></td>
-    <td>
-      ${canEdit ? `<button class="btn-icon" onclick="editIngreso('${i.id}')" title="Editar">✏️</button>` : ''}
-      ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
-    </td>`;
+  const isExtra = i.tipo === 'extra';
+  if (isExtra) {
+    tr.innerHTML = `
+      <td><span class="badge" style="background:var(--green);color:#000;font-size:11px">EXTRA</span></td>
+      <td>${fmtDate(i.fecha)}</td>
+      <td><strong>${i.vendedor || '—'}</strong></td>
+      <td colspan="5" style="font-size:13px"><strong style="color:var(--green)">${i.concepto || '—'}</strong>${i.notas ? '<br><small style="color:var(--muted)">' + i.notas + '</small>' : ''}</td>
+      <td style="text-align:center">—</td>
+      <td class="amount-pos"><strong>${fmtMoney(i.monto || i.montoNeto || 0)}</strong></td>
+      <td>
+        ${canEdit ? `<button class="btn-icon" onclick="editIngresoExtra('${i.id}')" title="Editar">✏️</button>` : ''}
+        ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
+      </td>`;
+  } else {
+    const pList = i.promociones || (i.promocion ? [i.promocion] : []);
+    const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
+    const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
+    const gastoTotal = gList.reduce((s, g) => s + (g.monto || 0), 0);
+    const garr = i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0);
+    tr.innerHTML = `
+      <td><span class="badge badge-blue" style="font-size:11px">VENTA</span></td>
+      <td>${fmtDate(i.fecha)}</td>
+      <td><strong>${i.vendedor || '—'}</strong></td>
+      <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
+      <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
+      <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
+      <td style="font-size:12px">${promoHtml}</td>
+      <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' : '—'}</td>
+      <td style="text-align:center">${garr}</td>
+      <td class="amount-pos"><strong>${fmtMoney(i.montoNeto || 0)}</strong></td>
+      <td>
+        ${canEdit ? `<button class="btn-icon" onclick="editIngreso('${i.id}')" title="Editar">✏️</button>` : ''}
+        ${canDel ? `<button class="btn-icon" onclick="delIngreso('${i.id}')" title="Eliminar">🗑️</button>` : ''}
+      </td>`;
+  }
   tb.insertBefore(tr, tb.firstChild);
 }
 
@@ -3834,25 +3908,17 @@ function getVendPromos() {
   return result;
 }
 
-function addVendIngresoExtraRow(monto, desc) {
-  const list = document.getElementById('vIngresosExtraList');
-  const row = document.createElement('div');
-  row.className = 'form-row';
-  row.style.marginBottom = '6px';
-  row.innerHTML = `
-    <div class="form-group" style="flex:1"><label>Monto ($)</label><input type="number" class="vExtraMonto" value="${monto || 0}" step="0.01" min="0" oninput="calcVendedorTotals()" /></div>
-    <div class="form-group" style="flex:2"><label>Concepto</label><input type="text" class="vExtraDesc" value="${desc || ''}" placeholder="Ej: Venta de filtro, servicio..." /></div>
-    <button type="button" class="btn-icon" onclick="this.parentElement.remove();calcVendedorTotals()" title="Quitar" style="margin-top:22px;color:var(--red)">✕</button>`;
-  list.appendChild(row);
-  calcVendedorTotals();
-}
-
-function getVendIngresosExtra() {
-  const rows = document.querySelectorAll('#vIngresosExtraList .form-row');
-  return Array.from(rows).map(r => ({
-    monto: parseFloat(r.querySelector('.vExtraMonto').value) || 0,
-    descripcion: r.querySelector('.vExtraDesc').value.trim()
-  })).filter(g => g.monto > 0 || g.descripcion);
+async function openVendIngresoExtraModal() {
+  document.getElementById('editingIngresoExtraId').value = '';
+  document.getElementById('ieDate').value = todayStr();
+  document.getElementById('ieConcepto').value = '';
+  document.getElementById('ieMonto').value = 0;
+  document.getElementById('ieNotas').value = '';
+  const ieVend = document.getElementById('ieVend');
+  ieVend.innerHTML = '';
+  const vendName = currentUser.vendedorNombre || currentUser.nombre;
+  const o = document.createElement('option'); o.value = vendName; o.textContent = vendName; ieVend.appendChild(o);
+  openModal('modalIngresoExtra');
 }
 
 function getVendExtraPrices() {
@@ -3910,14 +3976,10 @@ function calcVendedorTotals() {
   const gastos = getVendGastos();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
 
-  const vendExtras = getVendIngresosExtra();
-  const totalExtra = vendExtras.reduce((s, g) => s + g.monto, 0);
-
   document.getElementById('vDescuento').value = fmtMoney(descuento);
-  document.getElementById('vTotalExtra').textContent = '+' + fmtMoney(totalExtra);
   document.getElementById('vTotalDesc').textContent = '-' + fmtMoney(descuento);
   document.getElementById('vTotalGasto').textContent = '-' + fmtMoney(totalGasto);
-  document.getElementById('vTotalNeto').textContent = fmtMoney(totalVentas + totalExtra - descuento - totalGasto);
+  document.getElementById('vTotalNeto').textContent = fmtMoney(totalVentas - descuento - totalGasto);
 }
 
 async function saveVendedorVenta() {
@@ -3930,12 +3992,10 @@ async function saveVendedorVenta() {
   const publicoPrice = parseFloat(document.getElementById('vPubPrice').value) || 0;
   const notas = document.getElementById('vNotas').value;
 
-  const vendExtras = getVendIngresosExtra();
-  const totalExtra = vendExtras.reduce((s, g) => s + g.monto, 0);
   const extraPrices = getVendExtraPrices();
 
   if (!fecha || !ruta) { showToast('Selecciona fecha y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0 && vendExtras.length === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta o un ingreso extra', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
@@ -3956,15 +4016,15 @@ async function saveVendedorVenta() {
 
   const gastos = getVendGastos();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
-  const montoNeto = totalVentas + totalExtra - descuento - totalGasto;
+  const montoNeto = totalVentas - descuento - totalGasto;
 
   const rec = {
+    tipo: 'venta',
     fecha, vendedor, ruta,
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
     totalVentas, totalGarrafones,
     preciosExtra: extraPrices,
-    ingresosExtra: vendExtras, totalExtra,
     promociones, descuento,
     gastos, gastoMonto: totalGasto,
     montoNeto, notas,
@@ -3982,7 +4042,6 @@ async function saveVendedorVenta() {
     document.getElementById('vPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
     document.getElementById('vNotas').value = '';
     document.getElementById('vGastosList').innerHTML = '';
-    document.getElementById('vIngresosExtraList').innerHTML = '';
     document.querySelectorAll('#vPromosContainer .vPromoQtyInput').forEach(inp => inp.value = 0);
     document.querySelectorAll('.vExtraQtyInput').forEach(inp => inp.value = 0);
     calcVendedorTotals();
@@ -4013,6 +4072,15 @@ async function loadVendedorHistorial() {
       tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="icon">💰</div>Sin ventas en el período</div></td></tr>';
     } else {
       tb.innerHTML = data.map(i => {
+        if (i.tipo === 'extra') {
+          return `<tr>
+            <td>${fmtDate(i.fecha)}</td>
+            <td><span class="badge" style="background:var(--green);color:#000;font-size:11px">EXTRA</span></td>
+            <td colspan="4" style="font-size:13px"><strong style="color:var(--green)">${i.concepto || '—'}</strong></td>
+            <td style="text-align:center">—</td>
+            <td class="amount-pos"><strong>${fmtMoney(i.monto || i.montoNeto || 0)}</strong></td>
+          </tr>`;
+        }
         const pList = i.promociones || (i.promocion ? [i.promocion] : []);
         const promoHtml = pList.length ? pList.map(p => `<span class="badge badge-yellow" style="margin:1px">${p}</span>`).join('') : '—';
         const gList = i.gastos || (i.gastoMonto ? [{monto: i.gastoMonto}] : []);
