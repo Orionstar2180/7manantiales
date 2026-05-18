@@ -1434,6 +1434,7 @@ let customDateTo = null;
 
 function getDateRange(period) {
   const now = new Date();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   let start;
   if (period === 'personalizado' && customDateFrom && customDateTo) {
     return { start: new Date(customDateFrom + 'T00:00:00'), end: new Date(customDateTo + 'T23:59:59') };
@@ -1446,7 +1447,7 @@ function getDateRange(period) {
   } else if (period === 'año') {
     start = new Date(now.getFullYear(), 0, 1);
   } else { return null; }
-  return { start, end: now };
+  return { start, end: endOfDay };
 }
 
 function inRange(dateStr, period) {
