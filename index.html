@@ -505,8 +505,8 @@
           </div>
           <div style="overflow-x:auto">
           <table>
-            <thead><tr><th>Tipo</th><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>P\u00fablico</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
-            <tbody id="tbIngresos"><tr><td colspan="11" class="empty-state">Cargando...</td></tr></tbody>
+            <thead><tr><th>Tipo</th><th>Fecha</th><th>Vendedor</th><th>Ruta</th><th>Mayoreo</th><th>P\u00fablico</th><th>Garrafón</th><th>Promociones</th><th>Gastos</th><th>Garr.</th><th>Total Neto</th><th></th></tr></thead>
+            <tbody id="tbIngresos"><tr><td colspan="12" class="empty-state">Cargando...</td></tr></tbody>
           </table>
           </div>
           <div id="ingTotal" style="padding:14px 16px;border-top:1px solid var(--border);font-size:14px;display:flex;justify-content:flex-end;gap:6px;">Total: <strong>$0.00</strong></div>
@@ -671,6 +671,7 @@
             <div class="form-row">
               <div class="form-group"><label>Precio Mayoreo ($)</label><input type="number" id="catPrecioMayoreo" value="0" step="0.01" min="0" /></div>
               <div class="form-group"><label>Precio Público ($)</label><input type="number" id="catPrecioPublico" value="0" step="0.01" min="0" /></div>
+              <div class="form-group"><label>Precio Garrafón ($)</label><input type="number" id="catPrecioGarrafon" value="0" step="0.01" min="0" /></div>
               <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-add" onclick="saveDefaultPrices()">Guardar Precios</button></div>
             </div>
           </div>
@@ -921,6 +922,13 @@
       <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="iPubPrice" value="0" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
     </div>
     <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="iPubSub" class="amount-pos">$0.00</strong></div>
+
+    <h4 class="section-subtitle" style="color:var(--yellow)">Venta de Garrafón</h4>
+    <div class="form-row">
+      <div class="form-group"><label>Cantidad</label><input type="number" id="iGarrQty" value="0" min="0" oninput="calcIngresoTotals()" /></div>
+      <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="iGarrPrice" value="0" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
+    </div>
+    <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="iGarrSub" class="amount-pos">$0.00</strong></div>
 
     <!-- Precios Extra del Vendedor (solo visible si tiene) -->
     <div id="iExtraPricesSection" style="display:none">
@@ -1801,9 +1809,9 @@ async function loadIngresos() {
   const canDel = currentUser.rol === 'admin' || currentPerms.delete;
   const canEdit = currentUser.rol === 'admin' || currentPerms.ingAdd;
   const tb = document.getElementById('tbIngresos');
-  const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
+  const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0) + (i.garrafonQty || 0)), 0);
   if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">💰</div>Sin entradas en el período</div></td></tr>';
   } else {
     tb.innerHTML = data.map(i => {
       const isExtra = i.tipo === 'extra';
@@ -1812,7 +1820,7 @@ async function loadIngresos() {
           <td><span class="badge" style="background:var(--green);color:#000;font-size:11px">EXTRA</span></td>
           <td>${fmtDate(i.fecha)}</td>
           <td><strong>${i.vendedor || '—'}</strong></td>
-          <td colspan="5" style="font-size:13px"><strong style="color:var(--green)">${i.concepto || '—'}</strong>${i.notas ? '<br><small style="color:var(--muted)">' + i.notas + '</small>' : ''}</td>
+          <td colspan="6" style="font-size:13px"><strong style="color:var(--green)">${i.concepto || '—'}</strong>${i.notas ? '<br><small style="color:var(--muted)">' + i.notas + '</small>' : ''}</td>
           <td style="text-align:center">—</td>
           <td class="amount-pos"><strong>${fmtMoney(i.monto || i.montoNeto || 0)}</strong></td>
           <td>
@@ -1833,6 +1841,7 @@ async function loadIngresos() {
         <td><span class="badge badge-blue">${i.ruta || '—'}</span></td>
         <td>${i.mayoreoQty ? i.mayoreoQty + ' × ' + fmtMoney(i.mayoreoPrice || 0) : '—'}</td>
         <td>${i.publicoQty ? i.publicoQty + ' × ' + fmtMoney(i.publicoPrice || 0) : '—'}</td>
+        <td>${i.garrafonQty ? i.garrafonQty + ' × ' + fmtMoney(i.garrafonPrice || 0) : '—'}</td>
         <td style="font-size:12px">${promoHtml}</td>
         <td>${gastoTotal ? '<span class="amount-neg">' + fmtMoney(gastoTotal) + '</span>' + (gList.length > 1 ? ' <span style="color:var(--muted);font-size:11px">(' + gList.length + ')</span>' : '') : '—'}</td>
         <td style="text-align:center">${garr}</td>
@@ -1903,20 +1912,23 @@ function editIngresoExtra(id) {
   openIngresoExtraModal(id);
 }
 
+let savingIngresoExtra = false;
 async function saveIngresoExtra() {
+  if (savingIngresoExtra) return;
+  savingIngresoExtra = true;
+
   const fecha = document.getElementById('ieDate').value;
-  const vendedor = document.getElementById('ieVend').value;
   const concepto = document.getElementById('ieConcepto').value.trim();
   const monto = parseFloat(document.getElementById('ieMonto').value) || 0;
   const notas = document.getElementById('ieNotas').value.trim();
 
-  if (!fecha) { showToast('Selecciona una fecha', 'error'); return; }
-  if (!concepto) { showToast('Escribe el concepto del ingreso', 'error'); return; }
-  if (monto <= 0) { showToast('El monto debe ser mayor a 0', 'error'); return; }
+  if (!fecha) { showToast('Selecciona una fecha', 'error'); savingIngresoExtra = false; return; }
+  if (!concepto) { showToast('Escribe el concepto del ingreso', 'error'); savingIngresoExtra = false; return; }
+  if (monto <= 0) { showToast('El monto debe ser mayor a 0', 'error'); savingIngresoExtra = false; return; }
 
   const rec = {
     tipo: 'extra',
-    fecha, vendedor: vendedor || '', concepto, monto, montoNeto: monto, notas,
+    fecha, vendedor: '', concepto, monto, montoNeto: monto, notas,
     creadoPor: currentUser.nombre,
     ts: new Date(fecha + 'T12:00:00').getTime()
   };
@@ -1932,6 +1944,7 @@ async function saveIngresoExtra() {
     }
     closeModal('modalIngresoExtra');
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  savingIngresoExtra = false;
 }
 
 function loadAdminExtraPrices() {
@@ -1994,11 +2007,14 @@ function calcIngresoTotals() {
   const mayPrice = parseFloat(document.getElementById('iMayPrice').value) || 0;
   const pubQty = parseInt(document.getElementById('iPubQty').value) || 0;
   const pubPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
+  const garrQty = parseInt(document.getElementById('iGarrQty').value) || 0;
+  const garrPrice = parseFloat(document.getElementById('iGarrPrice').value) || 0;
 
   const maySub = mayQty * mayPrice;
   const pubSub = pubQty * pubPrice;
-  let totalVentas = maySub + pubSub;
-  let totalGarrafones = mayQty + pubQty;
+  const garrSub = garrQty * garrPrice;
+  let totalVentas = maySub + pubSub + garrSub;
+  let totalGarrafones = mayQty + pubQty + garrQty;
 
   // Extra prices (custom per vendedor)
   const extraPrices = getAdminExtraPrices();
@@ -2017,6 +2033,7 @@ function calcIngresoTotals() {
 
   document.getElementById('iMaySub').textContent = fmtMoney(maySub);
   document.getElementById('iPubSub').textContent = fmtMoney(pubSub);
+  document.getElementById('iGarrSub').textContent = fmtMoney(garrSub);
   document.getElementById('iTotalVentas').textContent = fmtMoney(totalVentas);
   document.getElementById('iTotalGarrafones').textContent = totalGarrafones;
 
@@ -2044,6 +2061,8 @@ async function openIngresoModal() {
   document.getElementById('iMayPrice').value = catsCache && catsCache.precioMayoreo ? catsCache.precioMayoreo : 0;
   document.getElementById('iPubQty').value = 0;
   document.getElementById('iPubPrice').value = catsCache && catsCache.precioPublico ? catsCache.precioPublico : 0;
+  document.getElementById('iGarrQty').value = 0;
+  document.getElementById('iGarrPrice').value = catsCache && catsCache.precioGarrafon ? catsCache.precioGarrafon : 0;
   document.getElementById('iGastosList').innerHTML = '';
   document.querySelectorAll('#iPromosContainer .promoQtyInput').forEach(inp => inp.value = 0);
   document.getElementById('iNotas').value = '';
@@ -2071,6 +2090,8 @@ async function editIngreso(id) {
     document.getElementById('iMayPrice').value = d.mayoreoPrice || 0;
     document.getElementById('iPubQty').value = d.publicoQty || 0;
     document.getElementById('iPubPrice').value = d.publicoPrice || 0;
+    document.getElementById('iGarrQty').value = d.garrafonQty || 0;
+    document.getElementById('iGarrPrice').value = d.garrafonPrice || (catsCache && catsCache.precioGarrafon ? catsCache.precioGarrafon : 0);
     document.getElementById('iRepartidor').value = d.repartidor || '';
     document.getElementById('iGastosList').innerHTML = '';
     const gastos = d.gastos || [];
@@ -2124,6 +2145,8 @@ async function saveIngreso() {
   const mayoreoPrice = parseFloat(document.getElementById('iMayPrice').value) || 0;
   const publicoQty = parseInt(document.getElementById('iPubQty').value) || 0;
   const publicoPrice = parseFloat(document.getElementById('iPubPrice').value) || 0;
+  const garrafonQty = parseInt(document.getElementById('iGarrQty').value) || 0;
+  const garrafonPrice = parseFloat(document.getElementById('iGarrPrice').value) || 0;
   const gastos = getGastosFromUI();
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
   const notas = document.getElementById('iNotas').value;
@@ -2131,12 +2154,13 @@ async function saveIngreso() {
   const extraPrices = getAdminExtraPrices();
 
   if (!fecha || !vendedor || !ruta) { showToast('Selecciona fecha, vendedor y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0 && garrafonQty === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
-  let totalVentas = mayoreoSubtotal + publicoSubtotal;
-  let totalGarrafones = mayoreoQty + publicoQty;
+  const garrafonSubtotal = garrafonQty * garrafonPrice;
+  let totalVentas = mayoreoSubtotal + publicoSubtotal + garrafonSubtotal;
+  let totalGarrafones = mayoreoQty + publicoQty + garrafonQty;
 
   extraPrices.forEach(ep => {
     totalVentas += ep.subtotal;
@@ -2157,6 +2181,7 @@ async function saveIngreso() {
     fecha, vendedor, ruta, repartidor: repartidor || '',
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
+    garrafonQty, garrafonPrice, garrafonSubtotal,
     totalVentas, totalGarrafones,
     preciosExtra: extraPrices,
     promociones, descuento,
@@ -2863,8 +2888,10 @@ async function loadCatsPage() {
   // Load default prices
   const pmEl = document.getElementById('catPrecioMayoreo');
   const ppEl = document.getElementById('catPrecioPublico');
+  const pgEl = document.getElementById('catPrecioGarrafon');
   if (pmEl) pmEl.value = cats.precioMayoreo || 0;
   if (ppEl) ppEl.value = cats.precioPublico || 0;
+  if (pgEl) pgEl.value = cats.precioGarrafon || 0;
 
   loadPreciosExtra();
 }
@@ -2997,8 +3024,9 @@ async function delPromo(idx) {
 async function saveDefaultPrices() {
   const precioMayoreo = parseFloat(document.getElementById('catPrecioMayoreo').value) || 0;
   const precioPublico = parseFloat(document.getElementById('catPrecioPublico').value) || 0;
+  const precioGarrafon = parseFloat(document.getElementById('catPrecioGarrafon').value) || 0;
   try {
-    await db.collection('categorias').doc('all').set({ precioMayoreo, precioPublico }, { merge: true });
+    await db.collection('categorias').doc('all').set({ precioMayoreo, precioPublico, precioGarrafon }, { merge: true });
     invalidateCatsCache();
     showToast('Precios por defecto guardados', 'success');
   } catch (e) {
@@ -4242,7 +4270,7 @@ async function loadVendedorHistorial() {
 
     data = data.filter(i => inRange(i.fecha, period));
     const total = data.reduce((s, i) => s + Number(i.montoNeto || i.monto || 0), 0);
-    const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0)), 0);
+    const totalGarr = data.reduce((s, i) => s + Number(i.totalGarrafones || (i.mayoreoQty || 0) + (i.publicoQty || 0) + (i.garrafonQty || 0)), 0);
 
     if (!data.length) {
       tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="icon">💰</div>Sin ventas en el período</div></td></tr>';
