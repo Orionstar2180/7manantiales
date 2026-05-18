@@ -1926,15 +1926,11 @@ async function saveIngresoExtra() {
     if (editId) {
       await db.collection('ingresos').doc(editId).update(rec);
       showToast('Ingreso extra actualizado', 'success');
-      const idx = ingresosCache.findIndex(c => c.id === editId);
-      if (idx >= 0) Object.assign(ingresosCache[idx], rec);
     } else {
-      const docRef = await db.collection('ingresos').add(rec);
+      await db.collection('ingresos').add(rec);
       showToast('Ingreso extra registrado', 'success');
-      ingresosCache.unshift({ id: docRef.id, ...rec });
     }
     closeModal('modalIngresoExtra');
-    loadIngresos();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
