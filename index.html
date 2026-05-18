@@ -866,7 +866,7 @@
     <input type="hidden" id="editingIngresoId" value="" />
     <div class="form-row">
       <div class="form-group"><label>Fecha</label><input type="date" id="iDate" /></div>
-      <div class="form-group"><label>Vendedor</label><select id="iVend"></select></div>
+      <div class="form-group"><label>Vendedor</label><select id="iVend" onchange="loadAdminExtraPrices()"></select></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Ruta</label><select id="iRuta"></select></div>
@@ -887,6 +887,13 @@
       <div class="form-group"><label>Precio Unitario ($)</label><input type="number" id="iPubPrice" value="0" step="0.01" min="0" oninput="calcIngresoTotals()" /></div>
     </div>
     <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong id="iPubSub" class="amount-pos">$0.00</strong></div>
+
+    <!-- Precios Extra del Vendedor (solo visible si tiene) -->
+    <div id="iExtraPricesSection" style="display:none">
+      <div class="section-divider"></div>
+      <h4 class="section-subtitle" style="color:var(--accent)">Precios Extra del Vendedor</h4>
+      <div id="iExtraPricesContainer"></div>
+    </div>
 
     <div class="section-divider"></div>
     <h4 class="section-subtitle" style="color:var(--yellow)">Promociones / Motivos (Opcional — puedes aplicar varias veces)</h4>
@@ -1442,6 +1449,7 @@ async function getCats() {
 }
 
 function invalidateCatsCache() { catsCache = null; }
+function invalidateIngCache() { /* real-time listener auto-updates */ }
 
 let ingresosCache = [];
 let egresosCache = [];
@@ -1887,6 +1895,46 @@ async function saveIngresoExtra() {
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
+function loadAdminExtraPrices() {
+  const vendedor = document.getElementById('iVend').value;
+  const section = document.getElementById('iExtraPricesSection');
+  const container = document.getElementById('iExtraPricesContainer');
+  if (!section || !container) return;
+  if (!vendedor || !catsCache || !catsCache.preciosExtra) {
+    section.style.display = 'none';
+    container.innerHTML = '';
+    calcIngresoTotals();
+    return;
+  }
+  const myExtras = catsCache.preciosExtra.filter(p => p.vendedor.toUpperCase() === vendedor.toUpperCase());
+  if (myExtras.length) {
+    section.style.display = 'block';
+    container.innerHTML = myExtras.map((p, i) => `
+      <div class="form-row" style="margin-bottom:6px">
+        <div class="form-group" style="flex:2"><label>${p.nombre} — $${p.precio}</label><input type="number" id="iExtraPrice_${i}" value="${p.precio}" step="0.01" min="0" readonly style="background:var(--bg3);cursor:not-allowed" /></div>
+        <div class="form-group" style="flex:1"><label>Cantidad</label><input type="number" class="iExtraQtyInput" data-extra-idx="${i}" data-extra-price="${p.precio}" data-extra-name="${p.nombre}" value="0" min="0" oninput="calcIngresoTotals()" /></div>
+      </div>
+      <div style="text-align:right;font-size:13px;color:var(--muted);margin-bottom:8px">Subtotal: <strong class="iExtraSub amount-pos" data-extra-idx="${i}">$0.00</strong></div>
+    `).join('');
+  } else {
+    section.style.display = 'none';
+    container.innerHTML = '';
+  }
+  calcIngresoTotals();
+}
+
+function getAdminExtraPrices() {
+  const inputs = document.querySelectorAll('.iExtraQtyInput');
+  const result = [];
+  inputs.forEach(inp => {
+    const qty = parseInt(inp.value) || 0;
+    const price = parseFloat(inp.dataset.extraPrice) || 0;
+    const name = inp.dataset.extraName || '';
+    if (qty > 0) result.push({ nombre: name, precio: price, cantidad: qty, subtotal: qty * price });
+  });
+  return result;
+}
+
 function getSelectedPromos() {
   const inputs = document.querySelectorAll('#iPromosContainer .promoQtyInput');
   if (!catsCache || !catsCache.promociones) return [];
@@ -1910,8 +1958,23 @@ function calcIngresoTotals() {
 
   const maySub = mayQty * mayPrice;
   const pubSub = pubQty * pubPrice;
-  const totalVentas = maySub + pubSub;
-  const totalGarrafones = mayQty + pubQty;
+  let totalVentas = maySub + pubSub;
+  let totalGarrafones = mayQty + pubQty;
+
+  // Extra prices (custom per vendedor)
+  const extraPrices = getAdminExtraPrices();
+  extraPrices.forEach(ep => {
+    totalVentas += ep.subtotal;
+    totalGarrafones += ep.cantidad;
+  });
+  // Update extra price subtotals display
+  document.querySelectorAll('.iExtraQtyInput').forEach(inp => {
+    const idx = inp.dataset.extraIdx;
+    const qty = parseInt(inp.value) || 0;
+    const price = parseFloat(inp.dataset.extraPrice) || 0;
+    const subEl = document.querySelector(`.iExtraSub[data-extra-idx="${idx}"]`);
+    if (subEl) subEl.textContent = fmtMoney(qty * price);
+  });
 
   document.getElementById('iMaySub').textContent = fmtMoney(maySub);
   document.getElementById('iPubSub').textContent = fmtMoney(pubSub);
@@ -1948,6 +2011,8 @@ async function openIngresoModal() {
   document.getElementById('iVend').value = '';
   document.getElementById('iRuta').value = '';
   document.getElementById('iRepartidor').value = '';
+  document.getElementById('iExtraPricesSection').style.display = 'none';
+  document.getElementById('iExtraPricesContainer').innerHTML = '';
   calcIngresoTotals();
   openModal('modalIngreso');
 }
@@ -1989,6 +2054,21 @@ async function editIngreso(id) {
         }
       });
     }
+    loadAdminExtraPrices();
+    // Restore extra price quantities if saved
+    if (d.preciosExtra && d.preciosExtra.length) {
+      setTimeout(() => {
+        d.preciosExtra.forEach(ep => {
+          const inputs = document.querySelectorAll('.iExtraQtyInput');
+          inputs.forEach(inp => {
+            if (inp.dataset.extraName === ep.nombre && parseFloat(inp.dataset.extraPrice) === ep.precio) {
+              inp.value = ep.cantidad || 0;
+            }
+          });
+        });
+        calcIngresoTotals();
+      }, 100);
+    }
     calcIngresoTotals();
     openModal('modalIngreso');
   } catch (e) {
@@ -2009,13 +2089,20 @@ async function saveIngreso() {
   const totalGasto = gastos.reduce((s, g) => s + g.monto, 0);
   const notas = document.getElementById('iNotas').value;
 
+  const extraPrices = getAdminExtraPrices();
+
   if (!fecha || !vendedor || !ruta) { showToast('Selecciona fecha, vendedor y ruta', 'error'); return; }
-  if (mayoreoQty === 0 && publicoQty === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
+  if (mayoreoQty === 0 && publicoQty === 0 && extraPrices.length === 0) { showToast('Ingresa al menos una venta', 'error'); return; }
 
   const mayoreoSubtotal = mayoreoQty * mayoreoPrice;
   const publicoSubtotal = publicoQty * publicoPrice;
-  const totalVentas = mayoreoSubtotal + publicoSubtotal;
-  const totalGarrafones = mayoreoQty + publicoQty;
+  let totalVentas = mayoreoSubtotal + publicoSubtotal;
+  let totalGarrafones = mayoreoQty + publicoQty;
+
+  extraPrices.forEach(ep => {
+    totalVentas += ep.subtotal;
+    totalGarrafones += ep.cantidad;
+  });
 
   let descuento = 0;
   const promos = getSelectedPromos();
@@ -2032,6 +2119,7 @@ async function saveIngreso() {
     mayoreoQty, mayoreoPrice, mayoreoSubtotal,
     publicoQty, publicoPrice, publicoSubtotal,
     totalVentas, totalGarrafones,
+    preciosExtra: extraPrices,
     promociones, descuento,
     gastos, gastoMonto: totalGasto,
     montoNeto, notas,
