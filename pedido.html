@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7 Manantiales — Hacer Pedido</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1e; --bg2: #111827; --bg3: #1a2235; --card: #161d2e;
+    --border: #1e2d45; --accent: #00d4ff; --green: #00e5a0; --red: #ff4d6d;
+    --yellow: #ffd166; --text: #e8f0fe; --muted: #7a8aaa;
+    --radius: 14px; --shadow: 0 4px 24px rgba(0,0,0,.35);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  
+  .container {
+    max-width: 520px; margin: 0 auto; padding: 20px 16px;
+  }
+  .header {
+    text-align: center; margin-bottom: 28px; padding-top: 20px;
+  }
+  .header h1 {
+    font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--accent);
+  }
+  .header p {
+    color: var(--muted); font-size: 14px; margin-top: 4px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  .card h3 {
+    font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px;
+  }
+  .form-group {
+    margin-bottom: 14px;
+  }
+  .form-group label {
+    display: block; font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif;
+    transition: border-color .2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .form-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  
+  .btn-location {
+    width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), #0099cc);
+    color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform .15s, box-shadow .15s; font-family: 'DM Sans', sans-serif;
+  }
+  .btn-location:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,255,.25); }
+  .btn-location:active { transform: scale(.98); }
+  .btn-location:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  
+  .btn-submit {
+    width: 100%; padding: 16px; background: linear-gradient(135deg, var(--green), #00b882);
+    color: #000; border: none; border-radius: 12px; font-size: 16px; font-weight: 800;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform .15s, box-shadow .15s; font-family: 'Syne', sans-serif;
+    letter-spacing: .5px;
+  }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,.25); }
+  .btn-submit:active { transform: scale(.98); }
+  .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  
+  .location-status {
+    text-align: center; font-size: 13px; margin-top: 8px; padding: 8px;
+    border-radius: 8px;
+  }
+  .location-status.success { background: rgba(0,229,160,.1); color: var(--green); }
+  .location-status.error { background: rgba(255,77,109,.1); color: var(--red); }
+  .location-status.loading { background: rgba(0,212,255,.1); color: var(--accent); }
+  
+  #miniMap {
+    height: 200px; border-radius: 10px; border: 1px solid var(--border);
+    margin-top: 12px; display: none;
+  }
+  
+  .success-screen {
+    display: none; text-align: center; padding: 40px 20px;
+  }
+  .success-screen .icon { font-size: 64px; margin-bottom: 16px; }
+  .success-screen h2 { font-family: 'Syne', sans-serif; font-size: 24px; color: var(--green); margin-bottom: 8px; }
+  .success-screen p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .success-screen .folio { 
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 20px; display: inline-block; font-size: 18px; font-weight: 700;
+    color: var(--accent); letter-spacing: 1px; margin-bottom: 24px;
+  }
+  .btn-new {
+    padding: 12px 32px; background: var(--bg3); border: 1px solid var(--accent);
+    color: var(--accent); border-radius: 10px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .btn-new:hover { background: var(--accent); color: #000; }
+
+  .qty-control {
+    display: flex; align-items: center; gap: 0;
+  }
+  .qty-control button {
+    width: 40px; height: 40px; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--accent); font-size: 20px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background .15s;
+  }
+  .qty-control button:first-child { border-radius: 10px 0 0 10px; }
+  .qty-control button:last-child { border-radius: 0 10px 10px 0; }
+  .qty-control button:hover { background: var(--accent); color: #000; }
+  .qty-control input {
+    width: 60px; height: 40px; text-align: center; background: var(--bg2); border: 1px solid var(--border);
+    border-left: none; border-right: none; color: var(--text); font-size: 16px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qty-control input:focus { outline: none; }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--card); color: var(--text); padding: 12px 24px; border-radius: 12px;
+    border: 1px solid var(--border); font-size: 14px; z-index: 999; opacity: 0;
+    transition: all .3s ease; max-width: 90%;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  #toast.success { border-left: 3px solid var(--green); }
+  #toast.error { border-left: 3px solid var(--red); }
+
+  .product-option {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; cursor: pointer; transition: all .2s; text-align: center;
+  }
+  .product-option:hover { border-color: var(--accent); }
+  .product-option.selected { border-color: var(--accent); background: rgba(0,212,255,.08); }
+  .product-option .emoji { font-size: 28px; display: block; margin-bottom: 4px; }
+  .product-option .name { font-size: 13px; font-weight: 600; }
+
+  .footer-note {
+    text-align: center; font-size: 11px; color: var(--muted); padding: 20px 0 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <h1>💧 7 Manantiales</h1>
+    <p>Purificadora — Haz tu pedido aquí</p>
+  </div>
+
+  <!-- ORDER FORM -->
+  <div id="orderForm">
+    <!-- Personal Info -->
+    <div class="card">
+      <h3>👤 Tus Datos</h3>
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="pNombre" placeholder="Tu nombre completo" autocomplete="name" />
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="tel" id="pTelefono" placeholder="Ej: 8121234567" autocomplete="tel" />
+      </div>
+      <div class="form-group">
+        <label>Dirección</label>
+        <input type="text" id="pDireccion" placeholder="Calle, número, colonia" autocomplete="street-address" />
+      </div>
+      <div class="form-group">
+        <label>Notas / Referencias (opcional)</label>
+        <textarea id="pNotas" rows="2" placeholder="Ej: Casa azul, junto a la tienda..."></textarea>
+      </div>
+    </div>
+
+    <!-- Product -->
+    <div class="card">
+      <h3>📦 ¿Qué quieres pedir?</h3>
+      <div class="form-group">
+        <label>Producto</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="product-option selected" onclick="selectProduct(this,'Garrafón 20L')">
+            <span class="emoji">💧</span>
+            <span class="name">Garrafón 20L</span>
+          </div>
+          <div class="product-option" onclick="selectProduct(this,'Botellón 10L')">
+            <span class="emoji">🫗</span>
+            <span class="name">Botellón 10L</span>
+          </div>
+          <div class="product-option" onclick="selectProduct(this,'Paquete Botellas')">
+            <span class="emoji">🧴</span>
+            <span class="name">Paquete Botellas</span>
+          </div>
+          <div class="product-option" onclick="selectProduct(this,'Otro')">
+            <span class="emoji">📦</span>
+            <span class="name">Otro</span>
+          </div>
+        </div>
+        <input type="text" id="pProducto" value="Garrafón 20L" placeholder="Escribe el producto..." style="display:none" />
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <div class="qty-control">
+          <button type="button" onclick="changeQty(-1)">−</button>
+          <input type="number" id="pCantidad" value="1" min="1" />
+          <button type="button" onclick="changeQty(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="card" style="border-left:4px solid var(--accent)">
+      <h3>📍 Tu Ubicación</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Para que nuestro repartidor llegue fácilmente a tu domicilio</p>
+      <button type="button" class="btn-location" id="btnLocation" onclick="getLocation()">
+        📍 Enviar mi ubicación actual
+      </button>
+      <div id="locationStatus"></div>
+      <div id="miniMap"></div>
+    </div>
+
+    <!-- Submit -->
+    <button type="button" class="btn-submit" id="btnSubmit" onclick="submitOrder()">
+      📦 Enviar Pedido
+    </button>
+  </div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success-screen" id="successScreen">
+    <div class="icon">✅</div>
+    <h2>¡Pedido Enviado!</h2>
+    <p>Tu pedido ha sido registrado exitosamente. Pronto nos pondremos en contacto contigo.</p>
+    <div class="folio" id="successFolio">PED-00001</div>
+    <p style="font-size:13px;color:var(--muted)">Guarda tu folio para seguimiento</p>
+    <br>
+    <button class="btn-new" onclick="resetForm()">Hacer otro pedido</button>
+  </div>
+
+  <div class="footer-note">
+    💧 7 Manantiales — Purificadora<br>Agua pura a tu puerta
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// Firebase config (same project)
+const firebaseConfig = {
+  apiKey: "AIzaSyDYM3t8z-PR4nj7M8q8XuOoz0SqvZmtrVA",
+  authDomain: "servigo-3486f.firebaseapp.com",
+  projectId: "servigo-3486f",
+  storageBucket: "servigo-3486f.firebasestorage.app",
+  messagingSenderId: "75646324651",
+  appId: "1:75646324651:web:4af737affca149b71d4cee"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// Sign in anonymously so Firestore rules (auth != null) allow writes
+auth.signInAnonymously().catch(e => console.log('Anonymous auth:', e.message));
+
+let selectedProduct = 'Garrafón 20L';
+let userLat = null;
+let userLng = null;
+let miniMap = null;
+let miniMarker = null;
+
+function selectProduct(el, name) {
+  document.querySelectorAll('.product-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedProduct = name;
+  const customInput = document.getElementById('pProducto');
+  if (name === 'Otro') {
+    customInput.style.display = '';
+    customInput.value = '';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+    customInput.value = name;
+  }
+}
+
+function changeQty(delta) {
+  const inp = document.getElementById('pCantidad');
+  let val = parseInt(inp.value) || 1;
+  val = Math.max(1, val + delta);
+  inp.value = val;
+}
+
+function getLocation() {
+  const btn = document.getElementById('btnLocation');
+  const status = document.getElementById('locationStatus');
+
+  if (!navigator.geolocation) {
+    status.className = 'location-status error';
+    status.textContent = 'Tu navegador no soporta geolocalización.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Obteniendo ubicación...';
+  status.className = 'location-status loading';
+  status.textContent = 'Buscando tu ubicación...';
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      btn.innerHTML = '✅ Ubicación obtenida';
+      btn.style.background = 'linear-gradient(135deg, var(--green), #00b882)';
+      status.className = 'location-status success';
+      status.textContent = `📍 Lat: ${userLat.toFixed(6)}, Lng: ${userLng.toFixed(6)}`;
+      btn.disabled = false;
+
+      // Show mini map
+      const mapEl = document.getElementById('miniMap');
+      mapEl.style.display = '';
+      if (!miniMap) {
+        miniMap = L.map(mapEl).setView([userLat, userLng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OSM'
+        }).addTo(miniMap);
+      } else {
+        miniMap.setView([userLat, userLng], 16);
+      }
+      if (miniMarker) miniMap.removeLayer(miniMarker);
+      miniMarker = L.marker([userLat, userLng]).addTo(miniMap)
+        .bindPopup('📍 Tu ubicación').openPopup();
+      setTimeout(() => miniMap.invalidateSize(), 200);
+    },
+    (err) => {
+      btn.disabled = false;
+      btn.innerHTML = '📍 Enviar mi ubicación actual';
+      status.className = 'location-status error';
+      if (err.code === 1) {
+        status.textContent = '⚠️ Permiso denegado. Activa la ubicación en tu navegador.';
+      } else if (err.code === 2) {
+        status.textContent = '⚠️ No se pudo obtener tu ubicación. Intenta de nuevo.';
+      } else {
+        status.textContent = '⚠️ Tiempo agotado. Intenta de nuevo.';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+async function submitOrder() {
+  const nombre = document.getElementById('pNombre').value.trim();
+  const telefono = document.getElementById('pTelefono').value.trim();
+  const direccion = document.getElementById('pDireccion').value.trim();
+  const notas = document.getElementById('pNotas').value.trim();
+  const cantidad = parseInt(document.getElementById('pCantidad').value) || 1;
+  const producto = selectedProduct === 'Otro' ? document.getElementById('pProducto').value.trim() : selectedProduct;
+
+  if (!nombre) { showToast('Ingresa tu nombre', 'error'); return; }
+  if (!telefono) { showToast('Ingresa tu teléfono', 'error'); return; }
+  if (!direccion) { showToast('Ingresa tu dirección', 'error'); return; }
+  if (!producto) { showToast('Selecciona o escribe un producto', 'error'); return; }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Enviando pedido...';
+
+  try {
+    // Get current pedido count for folio
+    const countSnap = await db.collection('pedidos').get();
+    const folio = 'PED-' + String(countSnap.size + 1).padStart(5, '0');
+
+    const pedido = {
+      folio,
+      clienteNombre: nombre,
+      clienteTelefono: telefono,
+      clienteDireccion: direccion,
+      clienteLat: userLat,
+      clienteLng: userLng,
+      producto,
+      cantidad,
+      precio: 0,
+      monto: 0,
+      fecha: new Date().toISOString().split('T')[0],
+      estado: 'pendiente',
+      notas: notas || '',
+      repartidorId: '',
+      repartidorNombre: '',
+      repartidorTelefono: '',
+      creadoPor: 'Cliente: ' + nombre,
+      origenPublico: true,
+      ts: Date.now()
+    };
+
+    await db.collection('pedidos').add(pedido);
+
+    // Show success
+    document.getElementById('orderForm').style.display = 'none';
+    document.getElementById('successScreen').style.display = '';
+    document.getElementById('successFolio').textContent = folio;
+  } catch(e) {
+    showToast('Error al enviar: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '📦 Enviar Pedido';
+  }
+}
+
+function resetForm() {
+  document.getElementById('orderForm').style.display = '';
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('pNombre').value = '';
+  document.getElementById('pTelefono').value = '';
+  document.getElementById('pDireccion').value = '';
+  document.getElementById('pNotas').value = '';
+  document.getElementById('pCantidad').value = 1;
+  document.getElementById('pProducto').value = 'Garrafón 20L';
+  selectedProduct = 'Garrafón 20L';
+  userLat = null; userLng = null;
+  document.querySelectorAll('.product-option').forEach((o, i) => {
+    o.classList.toggle('selected', i === 0);
+  });
+  document.getElementById('pProducto').style.display = 'none';
+  document.getElementById('btnSubmit').disabled = false;
+  document.getElementById('btnSubmit').innerHTML = '📦 Enviar Pedido';
+  document.getElementById('btnLocation').innerHTML = '📍 Enviar mi ubicación actual';
+  document.getElementById('btnLocation').style.background = '';
+  document.getElementById('locationStatus').innerHTML = '';
+  document.getElementById('miniMap').style.display = 'none';
+  if (miniMarker && miniMap) { miniMap.removeLayer(miniMarker); miniMarker = null; }
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (type || '');
+  setTimeout(() => t.className = '', 3000);
+}
+</script>
+</body>
+</html>
