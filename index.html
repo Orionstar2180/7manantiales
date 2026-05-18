@@ -962,10 +962,8 @@
     <h3 class="modal-title">💲 Ingreso Extra</h3>
     <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Registrar un ingreso que no es venta de garrafones (ej: venta de filtros, servicios, cobros, etc.)</p>
     <input type="hidden" id="editingIngresoExtraId" value="" />
-    <div class="form-row">
-      <div class="form-group"><label>Fecha</label><input type="date" id="ieDate" /></div>
-      <div class="form-group"><label>Vendedor</label><select id="ieVend"></select></div>
-    </div>
+    <select id="ieVend" style="display:none"><option value=""></option></select>
+    <div class="form-group"><label>Fecha</label><input type="date" id="ieDate" /></div>
     <div class="form-group"><label>Concepto / Descripción</label><input type="text" id="ieConcepto" placeholder="Ej: Venta de filtro, servicio de instalación, cobro pendiente..." /></div>
     <div class="form-group"><label>Monto ($)</label><input type="number" id="ieMonto" value="0" step="0.01" min="0" /></div>
     <div class="form-group"><label>Notas (opcional)</label><textarea id="ieNotas" rows="2" placeholder="Observaciones adicionales..."></textarea></div>
@@ -1927,15 +1925,14 @@ async function saveIngresoExtra() {
     if (editId) {
       await db.collection('ingresos').doc(editId).update(rec);
       showToast('Ingreso extra actualizado', 'success');
+      const idx = ingresosCache.findIndex(c => c.id === editId);
+      if (idx >= 0) Object.assign(ingresosCache[idx], rec);
     } else {
-      await db.collection('ingresos').add(rec);
+      const docRef = await db.collection('ingresos').add(rec);
       showToast('Ingreso extra registrado', 'success');
+      ingresosCache.unshift({ id: docRef.id, ...rec });
     }
     closeModal('modalIngresoExtra');
-    // Force refresh from server
-    const freshSnap = await db.collection('ingresos').get({ source: 'server' });
-    ingresosCache = freshSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    ingresosCache.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     loadIngresos();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
