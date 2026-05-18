@@ -870,8 +870,8 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label>Ruta</label><select id="iRuta"></select></div>
-      <div class="form-group"><label>Repartidor</label><select id="iRepartidor"><option value="">Sin repartidor</option></select></div>
     </div>
+    <select id="iRepartidor" style="display:none"><option value="">Sin repartidor</option></select>
 
     <div class="section-divider"></div>
     <h4 class="section-subtitle" style="color:var(--accent)">Ventas por Mayoreo</h4>
@@ -1753,7 +1753,7 @@ async function loadIngresos() {
   const vend = document.getElementById('fIngVendedor').value;
   const period = document.getElementById('fIngPeriodo').value;
   let data = await getIngresos();
-  if (ruta) data = data.filter(i => i.ruta === ruta);
+  if (ruta) data = data.filter(i => i.tipo === 'extra' || i.ruta === ruta);
   if (vend) data = data.filter(i => i.vendedor === vend);
   data = data.filter(i => inRange(i.fecha, period));
   const total = data.reduce((s, i) => s + Number(i.montoNeto || i.monto || 0), 0);
@@ -1890,7 +1890,10 @@ async function saveIngresoExtra() {
       showToast('Ingreso extra registrado', 'success');
     }
     closeModal('modalIngresoExtra');
-    invalidateIngCache();
+    // Force refresh from server
+    const freshSnap = await db.collection('ingresos').get({ source: 'server' });
+    ingresosCache = freshSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    ingresosCache.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     loadIngresos();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
